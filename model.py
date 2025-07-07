@@ -150,7 +150,7 @@ class GlobalModel(nn.Module):
         # attn = 1-torch.sigmoid(normalized_pos)
 
         # return attn.unsqueeze(1)
-          return self.gcd
+          return self.gcd.unsqueeze(1)
 
     def post_attention(self, h, mean_h):
         # calculate post-attn
