@@ -18,11 +18,11 @@ class MLP(nn.Module):
         #     activation,
         #     nn.Linear(hid_dim, out_dim),
         #     nn.Dropout(p=dropout)
-        # ])  
+        # ])
         self.encoder = nn.ModuleList([
             nn.Linear(in_dim, out_dim),
             activation,
-        ])  
+        ])
     
     def forward(self, features):
         h = features
@@ -79,7 +79,7 @@ class Encoder(nn.Module):
         
     def forward(self, h):
         h = self.encoder(h)
-        mean_h = self.meanAgg(self.g ,h)
+        mean_h = self.meanAgg(self.g ,h) #邻居聚合得到子图表示
 
         return h, mean_h
 
@@ -116,7 +116,7 @@ class LocalModel(nn.Module):
 
 
 class GlobalModel(nn.Module):
-    def __init__(self, graph, in_dim, out_dim, activation, nor_idx, ano_idx, center):
+    def __init__(self, graph, in_dim, out_dim, activation, nor_idx, ano_idx, center,gcd):
         super().__init__()
         self.g = graph
         self.discriminator = Discriminator(out_dim)
@@ -128,26 +128,28 @@ class GlobalModel(nn.Module):
         self.center = center # high confidence normal center
         self.encoder = Encoder(graph, in_dim, out_dim, activation)
         self.pre_attn = self.pre_attention()
+        self.gcd=gcd
 
     def pre_attention(self):
         # calculate pre-attn
-        msg_func = lambda edges:{'abs_diff': torch.abs(edges.src['pos'] - edges.dst['pos'])}
-        red_func = lambda nodes:{'pos_diff': torch.mean(nodes.mailbox['abs_diff'], dim=1)}
-        self.g.update_all(msg_func, red_func)
+        # msg_func = lambda edges:{'abs_diff': torch.abs(edges.src['pos'] - edges.dst['pos'])}
+        # red_func = lambda nodes:{'pos_diff': torch.mean(nodes.mailbox['abs_diff'], dim=1)}
+        # self.g.update_all(msg_func, red_func)
+        #
+        # pos = self.g.ndata['pos']
+        # pos.requires_grad = False
+        #
+        # pos_diff = self.g.ndata['pos_diff'].detach()
+        #
+        # diff_mean = pos_diff[self.nor_idx].mean()
+        # diff_std = torch.sqrt(pos_diff[self.nor_idx].var())
+        #
+        # normalized_pos = (pos_diff - diff_mean) / diff_std
+        #
+        # attn = 1-torch.sigmoid(normalized_pos)
 
-        pos = self.g.ndata['pos']
-        pos.requires_grad = False
-
-        pos_diff = self.g.ndata['pos_diff'].detach()
-
-        diff_mean = pos_diff[self.nor_idx].mean()
-        diff_std = torch.sqrt(pos_diff[self.nor_idx].var())
-
-        normalized_pos = (pos_diff - diff_mean) / diff_std
-        
-        attn = 1-torch.sigmoid(normalized_pos)
-
-        return attn.unsqueeze(1)
+        # return attn.unsqueeze(1)
+          return self.gcd
 
     def post_attention(self, h, mean_h):
         # calculate post-attn
