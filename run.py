@@ -127,7 +127,7 @@ def train_local(net, graph, feats, opt, args, memorybank_nor,memorybank_abnor,in
 
 
 #第二次修改
-def softmax_with_temperature(self, input, t=1, axis=-1):
+def softmax_with_temperature( input, t=1, axis=-1):
         ex = torch.exp(input / t)
         sum = torch.sum(ex, axis=axis)
         return ex / sum
