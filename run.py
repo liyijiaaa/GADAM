@@ -162,8 +162,8 @@ def load_info_from_local(local_net,nor_idx,abnor_idx,device):
     weights_pos = softmax_with_temperature(cosine_pos, t=5).reshape(1, -1)
     weights_neg = softmax_with_temperature(cosine_neg, t=5).reshape(1, -1)
     #更新
-    pos_vector = torch.mm(weights_pos,pos_vector )
-    neg_vector = torch.mm(weights_neg, neg_vector)
+    pos_vector = torch.mm(weights_pos,nor_feats )
+    neg_vector = torch.mm(weights_neg, abnor_feats)
 
     # 计算所有节点与两个原型的相似度
     sim_with_benign = cos(feats, pos_vector.repeat(feats.shape[0], 1))  # 与良性原型的相似度，形状为[N]
