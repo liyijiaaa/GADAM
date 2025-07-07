@@ -126,9 +126,10 @@ class GlobalModel(nn.Module):
         self.nor_idx = nor_idx
         self.ano_idx = ano_idx
         self.center = center # high confidence normal center
+        self.gcd = gcd
         self.encoder = Encoder(graph, in_dim, out_dim, activation)
         self.pre_attn = self.pre_attention()
-        self.gcd=gcd
+
 
     def pre_attention(self):
         # calculate pre-attn
