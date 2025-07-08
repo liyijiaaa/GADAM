@@ -150,7 +150,22 @@ class GlobalModel(nn.Module):
         # attn = 1-torch.sigmoid(normalized_pos)
 
         # return attn.unsqueeze(1)
-          return gcd.unsqueeze(1)
+        # 1. 计算正常节点的GCD统计量
+        gcd_nor = gcd[self.nor_idx]
+        gcd_mean = gcd_nor.mean()
+        gcd_std = torch.sqrt(gcd_nor.var() + 1e-8)  # 添加小常数防止除零
+
+        # 2. 标准化所有节点的GCD值
+        normalized_gcd = (gcd - gcd_mean) / gcd_std
+
+        # 3. 计算注意力权重：GCD越小(越正常)权重越高
+        # 使用sigmoid确保权重在[0,1]范围内
+        # 反转关系：1 - sigmoid(normalized_gcd)
+        attn = 1 - torch.sigmoid(normalized_gcd)
+
+        # 4. 增加维度使其成为列向量 [num_nodes, 1]
+        return attn.unsqueeze(1)
+         # return gcd.unsqueeze(1)
 
     def post_attention(self, h, mean_h):
         # calculate post-attn
