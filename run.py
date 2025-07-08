@@ -191,16 +191,16 @@ def train_global(global_net, opt, graph, args, nor_idx, abnor_idx):
     dur = []
 
     pred_labels = np.zeros_like(labels)
+    # 第二次修改：初始化原型
+    nor_feats = feats[nor_idx]
+    abnor_feats = feats[abnor_idx]
+
+    pos_vector = torch.mean(nor_feats, dim=0, keepdim=True)
+    neg_vector = torch.mean(abnor_feats, dim=0, keepdim=True)
     for epoch in range(epochs):
         global_net.train()
         # 第二次修改：初始化原型
         with torch.no_grad():
-
-            nor_feats = feats[nor_idx]
-            abnor_feats = feats[abnor_idx]
-
-            pos_vector = torch.mean(nor_feats, dim=0, keepdim=True)
-            neg_vector = torch.mean(abnor_feats, dim=0, keepdim=True)
 
             cos = nn.CosineSimilarity(dim=1, eps=1e-6)
             cosine_pos = cos(pos_vector, nor_feats)
@@ -211,20 +211,20 @@ def train_global(global_net, opt, graph, args, nor_idx, abnor_idx):
             pos_vector = torch.mm(weights_pos, nor_feats)
             neg_vector = torch.mm(weights_neg, abnor_feats)
 
-        # 计算所有节点与两个原型的相似度
-            sim_with_benign = cos(feats, pos_vector.repeat(feats.shape[0], 1))  # 与良性原型的相似度，形状为[N]
-            sim_with_fraud = cos(feats, neg_vector.repeat(feats.shape[0], 1))  # 与欺诈原型的相似度，形状为[N]
+     # 计算所有节点与两个原型的相似度
+        sim_with_benign = cos(feats, pos_vector.repeat(feats.shape[0], 1))  # 与良性原型的相似度，形状为[N]
+        sim_with_fraud = cos(feats, neg_vector.repeat(feats.shape[0], 1))  # 与欺诈原型的相似度，形状为[N]
 
-            labels_tensor = graph.ndata.get('label', torch.full((feats.shape[0],), -1, device=device))  # 节点标签
-            gcd = torch.where(
-                labels_tensor == 0,  # 正常节点
-                sim_with_benign,
-                torch.where(
-                    labels_tensor == 1,  # 异常节点
-                    sim_with_fraud,
-                    torch.max(sim_with_benign, sim_with_fraud)  # 无标签节点
-                )
+        labels_tensor = graph.ndata.get('label', torch.full((feats.shape[0],), -1, device=device))  # 节点标签
+        gcd = torch.where(
+            labels_tensor == 0,  # 正常节点
+            sim_with_benign,
+            torch.where(
+                labels_tensor == 1,  # 异常节点
+                sim_with_fraud,
+                torch.max(sim_with_benign, sim_with_fraud)  # 无标签节点
             )
+        )
         #
         if epoch >= 3:
             t0 = time.time()
