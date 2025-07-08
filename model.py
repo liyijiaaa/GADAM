@@ -120,7 +120,10 @@ class GlobalModel(nn.Module):
         super().__init__()
         self.g = graph
         self.discriminator = Discriminator(out_dim)
-        self.beta = 0.9
+        # self.beta = 0.9
+        self.bata1=0.4
+        self.bata2=0.4
+        self.bata3=0.2
         self.neigh_weight = 1. 
         self.loss = nn.BCEWithLogitsLoss()
         self.nor_idx = nor_idx
@@ -172,10 +175,12 @@ class GlobalModel(nn.Module):
         h, mean_h = self.encoder(feats)
         pre_attn = self.pre_attention()
         post_attn = self.post_attention(h, mean_h)
-        beta = math.pow(self.beta, epoch)
-        if beta < 0.1:
-            beta = 0.
-        attn = beta*pre_attn + (1-beta)*post_attn + 0.3 * (gcd.unsqueeze(1))  #xxxxxxxxxxxxx
+        # beta = math.pow(self.beta, epoch)
+        # if beta < 0.1:
+        #     beta = 0.
+        bata1=math.pow(self.bata1, epoch)
+        bata2=math.pow(self.bata2, epoch)
+        attn = bata2*pre_attn + (1-bata1-bata2)*post_attn + bata1 * (gcd.unsqueeze(1))
 
 
         h = self.msg_pass(h, mean_h, attn)
