@@ -161,7 +161,7 @@ def load_info_from_local(local_net,nor_idx,abnor_idx,device):
     return memo, nor_idx, abnor_idx, center
 
 
-def train_global(global_net, opt, graph, args):
+def train_global(global_net, opt, graph, args, nor_idx, abnor_idx):
     epochs = args.global_epochs
 
     labels = graph.ndata['label'].cpu().numpy()
@@ -195,9 +195,9 @@ def train_global(global_net, opt, graph, args):
         global_net.train()
         # 第二次修改：初始化原型
         with torch.no_grad():
-            h, _ = global_net.encoder(feats)
-            nor_feats = h[global_net.nor_idx]
-            abnor_feats = h[global_net.ano_idx]
+
+            nor_feats = feats[nor_idx]
+            abnor_feats = feats[abnor_idx]
 
             pos_vector = torch.mean(nor_feats, dim=0, keepdim=True)
             neg_vector = torch.mean(abnor_feats, dim=0, keepdim=True)
@@ -212,8 +212,8 @@ def train_global(global_net, opt, graph, args):
             neg_vector = torch.mm(weights_neg, abnor_feats)
 
         # 计算所有节点与两个原型的相似度
-            sim_with_benign = cos(h, pos_vector.repeat(h.shape[0], 1))  # 与良性原型的相似度，形状为[N]
-            sim_with_fraud = cos(h, neg_vector.repeat(h.shape[0], 1))  # 与欺诈原型的相似度，形状为[N]
+            sim_with_benign = cos(feats, pos_vector.repeat(feats.shape[0], 1))  # 与良性原型的相似度，形状为[N]
+            sim_with_fraud = cos(feats, neg_vector.repeat(feats.shape[0], 1))  # 与欺诈原型的相似度，形状为[N]
 
             labels = graph.ndata.get('label', torch.full((feats.shape[0],), -1, device=device))  # 节点标签
             gcd = torch.where(
@@ -309,7 +309,7 @@ def main(args):
                                  weight_decay=args.weight_decay)
     t3 = time.time()
     
-    mix_auc, recall_k, ap = train_global(global_net, opt, graph, args)
+    mix_auc, recall_k, ap = train_global(global_net, opt, graph, args,nor_idx,ano_idx)
     t4 = time.time()
 
     t_all = t2+t4-t1-t3
