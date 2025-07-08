@@ -150,36 +150,7 @@ def load_info_from_local(local_net,nor_idx,abnor_idx,device):
     h, _ = local_net.encoder(feats)
     center = h[nor_idx].mean(dim=0).detach()
 
-    #第二次修改：初始化原型
-    nor_feats = feats[nor_idx]
-    abnor_feats = feats[abnor_idx]
-    pos_vector=torch.mean(nor_feats, dim=0, keepdim=True)
-    neg_vector=torch.mean(abnor_feats, dim=0, keepdim=True)
 
-    cos= nn.CosineSimilarity(dim=1, eps=1e-6)
-    cosine_pos = cos(pos_vector, nor_feats)
-    cosine_neg = cos(neg_vector, abnor_feats)
-    weights_pos = softmax_with_temperature(cosine_pos, t=5).reshape(1, -1)
-    weights_neg = softmax_with_temperature(cosine_neg, t=5).reshape(1, -1)
-    #更新
-    pos_vector = torch.mm(weights_pos,nor_feats )
-    neg_vector = torch.mm(weights_neg, abnor_feats)
-
-    # 计算所有节点与两个原型的相似度
-    sim_with_benign = cos(feats, pos_vector.repeat(feats.shape[0], 1))  # 与良性原型的相似度，形状为[N]
-    sim_with_fraud = cos(feats, neg_vector.repeat(feats.shape[0], 1))  # 与欺诈原型的相似度，形状为[N]
-
-    labels = graph.ndata.get('label', torch.full((feats.shape[0],), -1, device=device))  # 节点标签
-    gcd = torch.where(
-        labels == 0,  # 正常节点
-        sim_with_benign,
-        torch.where(
-            labels == 1,  # 异常节点
-            sim_with_fraud,
-            torch.max(sim_with_benign, sim_with_fraud)  # 无标签节点
-        )
-    )
-    #
 
     if device >= 0:
         memo = {k: v.to(device) for k, v in memo.items()}
@@ -187,10 +158,10 @@ def load_info_from_local(local_net,nor_idx,abnor_idx,device):
         abnor_idx = abnor_idx.cuda()
         center = center.cuda()
 
-    return memo, nor_idx, abnor_idx, center,gcd
+    return memo, nor_idx, abnor_idx, center
 
 
-def train_global(global_net, opt, graph, args, gcd):
+def train_global(global_net, opt, graph, args):
     epochs = args.global_epochs
 
     labels = graph.ndata['label'].cpu().numpy()
@@ -222,7 +193,39 @@ def train_global(global_net, opt, graph, args, gcd):
     pred_labels = np.zeros_like(labels)
     for epoch in range(epochs):
         global_net.train()
+        # 第二次修改：初始化原型
+        with torch.no_grad():
+            h, _ = global_net.encoder(feats)
+            nor_feats = h[global_net.nor_idx]
+            abnor_feats = h[global_net.ano_idx]
 
+            pos_vector = torch.mean(nor_feats, dim=0, keepdim=True)
+            neg_vector = torch.mean(abnor_feats, dim=0, keepdim=True)
+
+            cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+            cosine_pos = cos(pos_vector, nor_feats)
+            cosine_neg = cos(neg_vector, abnor_feats)
+            weights_pos = softmax_with_temperature(cosine_pos, t=5).reshape(1, -1)
+            weights_neg = softmax_with_temperature(cosine_neg, t=5).reshape(1, -1)
+        # 更新
+            pos_vector = torch.mm(weights_pos, nor_feats)
+            neg_vector = torch.mm(weights_neg, abnor_feats)
+
+        # 计算所有节点与两个原型的相似度
+            sim_with_benign = cos(feats, pos_vector.repeat(feats.shape[0], 1))  # 与良性原型的相似度，形状为[N]
+            sim_with_fraud = cos(feats, neg_vector.repeat(feats.shape[0], 1))  # 与欺诈原型的相似度，形状为[N]
+
+            labels = graph.ndata.get('label', torch.full((feats.shape[0],), -1, device=device))  # 节点标签
+            gcd = torch.where(
+                labels == 0,  # 正常节点
+                sim_with_benign,
+                torch.where(
+                    labels == 1,  # 异常节点
+                    sim_with_fraud,
+                    torch.max(sim_with_benign, sim_with_fraud)  # 无标签节点
+                )
+            )
+        #
         if epoch >= 3:
             t0 = time.time()
 
@@ -289,7 +292,7 @@ def main(args):
     nor_idx, abnor_idx = train_local(local_net, graph, feats, local_opt, args, memorybank_nor,memorybank_abnor)
     
 
-    memo, nor_idx, ano_idx, center,gcd = load_info_from_local(local_net,nor_idx,abnor_idx, args.gpu)
+    memo, nor_idx, ano_idx, center= load_info_from_local(local_net,nor_idx,abnor_idx, args.gpu)
 
     t2 = time.time()
     graph = memo['graph']
@@ -300,13 +303,13 @@ def main(args):
                              nor_idx, 
                              ano_idx, 
                              center,
-                             gcd)
+                             )
     opt = torch.optim.Adam(global_net.parameters(), 
                                  lr=args.global_lr, 
                                  weight_decay=args.weight_decay)
     t3 = time.time()
     
-    mix_auc, recall_k, ap = train_global(global_net, opt, graph, args,gcd)
+    mix_auc, recall_k, ap = train_global(global_net, opt, graph, args)
     t4 = time.time()
 
     t_all = t2+t4-t1-t3

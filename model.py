@@ -116,7 +116,7 @@ class LocalModel(nn.Module):
 
 
 class GlobalModel(nn.Module):
-    def __init__(self, graph, in_dim, out_dim, activation, nor_idx, ano_idx, center,gcd):
+    def __init__(self, graph, in_dim, out_dim, activation, nor_idx, ano_idx, center):
         super().__init__()
         self.g = graph
         self.discriminator = Discriminator(out_dim)
@@ -126,12 +126,12 @@ class GlobalModel(nn.Module):
         self.nor_idx = nor_idx
         self.ano_idx = ano_idx
         self.center = center # high confidence normal center
-        self.gcd = gcd
+
         self.encoder = Encoder(graph, in_dim, out_dim, activation)
-        self.pre_attn = self.pre_attention()
+       # self.pre_attn = self.pre_attention()
 
 
-    def pre_attention(self):
+    def pre_attention(self,gcd):
         # calculate pre-attn
         # msg_func = lambda edges:{'abs_diff': torch.abs(edges.src['pos'] - edges.dst['pos'])}
         # red_func = lambda nodes:{'pos_diff': torch.mean(nodes.mailbox['abs_diff'], dim=1)}
@@ -150,7 +150,7 @@ class GlobalModel(nn.Module):
         # attn = 1-torch.sigmoid(normalized_pos)
 
         # return attn.unsqueeze(1)
-          return self.gcd.unsqueeze(1)
+          return gcd.unsqueeze(1)
 
     def post_attention(self, h, mean_h):
         # calculate post-attn
@@ -166,12 +166,12 @@ class GlobalModel(nn.Module):
 
     def forward(self, feats, epoch,gcd):
         h, mean_h = self.encoder(feats)
-
+        pre_attn = self.pre_attention(gcd)
         post_attn = self.post_attention(h, mean_h)
         beta = math.pow(self.beta, epoch)
         if beta < 0.1:
             beta = 0.
-        attn = beta*self.pre_attn + (1-beta)*post_attn
+        attn = beta*pre_attn + (1-beta)*post_attn
 
         h = self.msg_pass(h, mean_h, attn)
 
