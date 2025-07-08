@@ -173,7 +173,7 @@ class GlobalModel(nn.Module):
         beta = math.pow(self.beta, epoch)
         if beta < 0.1:
             beta = 0.
-        attn = beta*pre_attn + (1-beta)*post_attn + 0.3 * gcd  #xxxxxxxxxxxxx
+        attn = beta*pre_attn + (1-beta)*post_attn + 0.3 * (gcd.unsqueeze(1))  #xxxxxxxxxxxxx
 
         h = self.msg_pass(h, mean_h, attn)
 
