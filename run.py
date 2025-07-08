@@ -212,8 +212,8 @@ def train_global(global_net, opt, graph, args):
             neg_vector = torch.mm(weights_neg, abnor_feats)
 
         # 计算所有节点与两个原型的相似度
-            sim_with_benign = cos(feats, pos_vector.repeat(feats.shape[0], 1))  # 与良性原型的相似度，形状为[N]
-            sim_with_fraud = cos(feats, neg_vector.repeat(feats.shape[0], 1))  # 与欺诈原型的相似度，形状为[N]
+            sim_with_benign = cos(feats, pos_vector.repeat(h.shape[0], 1))  # 与良性原型的相似度，形状为[N]
+            sim_with_fraud = cos(feats, neg_vector.repeat(h.shape[0], 1))  # 与欺诈原型的相似度，形状为[N]
 
             labels = graph.ndata.get('label', torch.full((feats.shape[0],), -1, device=device))  # 节点标签
             gcd = torch.where(
