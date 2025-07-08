@@ -215,12 +215,12 @@ def train_global(global_net, opt, graph, args, nor_idx, abnor_idx):
             sim_with_benign = cos(feats, pos_vector.repeat(feats.shape[0], 1))  # 与良性原型的相似度，形状为[N]
             sim_with_fraud = cos(feats, neg_vector.repeat(feats.shape[0], 1))  # 与欺诈原型的相似度，形状为[N]
 
-            labels = graph.ndata.get('label', torch.full((feats.shape[0],), -1, device=device))  # 节点标签
+            labels_tensor = graph.ndata.get('label', torch.full((feats.shape[0],), -1, device=device))  # 节点标签
             gcd = torch.where(
-                labels == 0,  # 正常节点
+                labels_tensor == 0,  # 正常节点
                 sim_with_benign,
                 torch.where(
-                    labels == 1,  # 异常节点
+                    labels_tensor == 1,  # 异常节点
                     sim_with_fraud,
                     torch.max(sim_with_benign, sim_with_fraud)  # 无标签节点
                 )
