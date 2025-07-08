@@ -121,8 +121,8 @@ class GlobalModel(nn.Module):
         self.g = graph
         self.discriminator = Discriminator(out_dim)
         # self.beta = 0.9
-        self.bata1=0.2
-        self.bata2=0.7
+        self.bata1=0.4
+        self.bata2=0.5
         self.bata3=0.1
         self.neigh_weight = 1. 
         self.loss = nn.BCEWithLogitsLoss()
@@ -179,7 +179,12 @@ class GlobalModel(nn.Module):
         # if beta < 0.1:
         #     beta = 0.
         bata1=math.pow(self.bata1, epoch)
+        if bata1 < 0.1:
+             bata1 = 0.
+
         bata2=math.pow(self.bata2, epoch)
+        if bata2 < 0.1:
+             bata2 = 0.
         attn = bata2*pre_attn + (1-bata1-bata2)*post_attn + bata1 * (gcd.unsqueeze(1))
 
 
