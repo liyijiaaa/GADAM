@@ -167,6 +167,8 @@ class GlobalModel(nn.Module):
         return h
 
     def forward(self, feats, epoch,gcd):
+        # 归一化GCD到[0,1]范围
+        gcd = (gcd - gcd.min()) / (gcd.max() - gcd.min() + 1e-8)
         h, mean_h = self.encoder(feats)
         pre_attn = self.pre_attention()
         post_attn = self.post_attention(h, mean_h)
@@ -174,6 +176,7 @@ class GlobalModel(nn.Module):
         if beta < 0.1:
             beta = 0.
         attn = beta*pre_attn + (1-beta)*post_attn + 0.3 * (gcd.unsqueeze(1))  #xxxxxxxxxxxxx
+
 
         h = self.msg_pass(h, mean_h, attn)
 
