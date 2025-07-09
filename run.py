@@ -226,8 +226,8 @@ def train_global(global_net, opt, graph, args, nor_idx, abnor_idx):
             neg_vector1 = neg_vector.repeat(len(feats), 1)
 
             # 计算余弦相似度
-            cosine_pos = cos(pos_vector1, feats)  # 与欺诈原型相似度
-            cosine_neg = cos(neg_vector1, feats)  # 与良性原型相似度
+            cosine_pos = cos(pos_vector1, h)  # 与欺诈原型相似度
+            cosine_neg = cos(neg_vector1, h)  # 与良性原型相似度
 
             # 组合为GCD矩阵：[良性相似度, 欺诈相似度]
             simi = torch.cat((cosine_pos.view(-1, 1),
