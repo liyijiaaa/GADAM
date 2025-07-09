@@ -209,8 +209,8 @@ def train_global(global_net, opt, graph, args, nor_idx, abnor_idx):
 
             cosine_pos = cos(pos_vector, nor_feats)
             cosine_neg = cos(neg_vector, abnor_feats)
-            weights_pos = softmax_with_temperature(cosine_pos, t=5).reshape(1, -1)
-            weights_neg = softmax_with_temperature(cosine_neg, t=5).reshape(1, -1)
+            weights_pos = softmax_with_temperature(cosine_pos, t=3).reshape(1, -1)
+            weights_neg = softmax_with_temperature(cosine_neg, t=3).reshape(1, -1)
             # 更新原型
             pos_vector = torch.mm(weights_pos, nor_feats)
             neg_vector = torch.mm(weights_neg, abnor_feats)
