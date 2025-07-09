@@ -179,7 +179,6 @@ class GlobalModel(nn.Module):
 
         attn = beta*pre_attn + (1-beta)*post_attn
 
-
         h = self.msg_pass(h, mean_h, attn)
 
         scores = self.discriminator(h, self.center)

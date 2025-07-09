@@ -174,6 +174,7 @@ def train_global(global_net, opt, graph, args, nor_idx, abnor_idx):
     if device >= 0:
         torch.cuda.set_device(device)
         global_net = global_net.to(device)
+
         # labels = labels.cuda()
         feats = feats.cuda()
         bncos = bncos.cuda()
