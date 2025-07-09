@@ -169,12 +169,14 @@ def train_global(global_net, opt, graph, args, nor_idx, abnor_idx):
     device = args.gpu
     feats = graph.ndata['feat']
     pos = graph.ndata['pos']
+    bncos = nn.BatchNorm1d(feats.shape[1])
 
     if device >= 0:
         torch.cuda.set_device(device)
         global_net = global_net.to(device)
         # labels = labels.cuda()
         feats = feats.cuda()
+        bncos = bncos.cuda()
 
     def init_xavier(m):
         if type(m) == nn.Linear:
@@ -189,8 +191,9 @@ def train_global(global_net, opt, graph, args, nor_idx, abnor_idx):
     cnt_wait = 0
     best = 999
     dur = []
-
+    cos = nn.CosineSimilarity(dim=1, eps=1e-6)
     pred_labels = np.zeros_like(labels)
+
     # 第二次修改：初始化原型
     nor_feats = feats[nor_idx]
     abnor_feats = feats[abnor_idx]
@@ -199,38 +202,46 @@ def train_global(global_net, opt, graph, args, nor_idx, abnor_idx):
     neg_vector = torch.mean(abnor_feats, dim=0, keepdim=True)
     for epoch in range(epochs):
         global_net.train()
-        # 第二次修改：初始化原型
+        # 第二次修改：更新原型
         with torch.no_grad():
 
-            cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+
             cosine_pos = cos(pos_vector, nor_feats)
             cosine_neg = cos(neg_vector, abnor_feats)
             weights_pos = softmax_with_temperature(cosine_pos, t=5).reshape(1, -1)
             weights_neg = softmax_with_temperature(cosine_neg, t=5).reshape(1, -1)
-        # 更新
+            # 更新原型
             pos_vector = torch.mm(weights_pos, nor_feats)
             neg_vector = torch.mm(weights_neg, abnor_feats)
 
-     # 计算所有节点与两个原型的相似度
-        sim_with_benign = cos(feats, pos_vector.repeat(feats.shape[0], 1))  # 与良性原型的相似度，形状为[N]
-        sim_with_fraud = cos(feats, neg_vector.repeat(feats.shape[0], 1))  # 与欺诈原型的相似度，形状为[N]
+            # 特征归一化
 
-        labels_tensor = graph.ndata.get('label', torch.full((feats.shape[0],), -1, device=device))  # 节点标签
-        gcd = torch.where(
-            labels_tensor == 0,  # 正常节点
-            sim_with_benign,
-            torch.where(
-                labels_tensor == 1,  # 异常节点
-                sim_with_fraud,
-                torch.max(sim_with_benign, sim_with_fraud)  # 无标签节点
-            )
-        )
-        #
+            feats = bncos(feats)
+
+            # 扩展原型向量以匹配特征维度
+            pos_vector1 = pos_vector.repeat(len(feats), 1)
+            neg_vector1 = neg_vector.repeat(len(feats), 1)
+
+            # 计算余弦相似度
+            cosine_pos = cos(pos_vector1, feats)  # 与欺诈原型相似度
+            cosine_neg = cos(neg_vector1, feats)  # 与良性原型相似度
+
+            # 组合为GCD矩阵：[良性相似度, 欺诈相似度]
+            simi = torch.cat((cosine_pos.view(-1, 1),
+                                     cosine_neg.view(-1, 1)), 1)
+            # 创建伪标签向量
+            pseudo_labels = torch.full((num_nodes,), 2, dtype=torch.long, device=device)  # 2表示未标记
+            pseudo_labels[nor_idx] = 0  # 高置信度正常节点
+            pseudo_labels[abnor_idx] = 1  # 高置信度异常节点
+            # gcd = simi[:, 0] * (pseudo_labels == 0) + simi[:, 1] * (pseudo_labels == 1) + (pseudo_labels == 2) * torch.max(simi, dim=1)[0]  # 未标记用最大值
+            gcd = simi[:, 0] * (pseudo_labels == 0) + simi[:, 1] * (pseudo_labels == 1) + (pseudo_labels == 2) * (simi[:, 0] - simi[:, 1])
+
+
         if epoch >= 3:
             t0 = time.time()
 
         opt.zero_grad()
-        loss, scores = global_net(feats, epoch, gcd)
+        loss, scores = global_net(feats, epoch)
         loss.backward()
         opt.step()
 
@@ -241,7 +252,7 @@ def train_global(global_net, opt, graph, args, nor_idx, abnor_idx):
             best = loss.item()
             torch.save(global_net.state_dict(), 'best_global_model.pkl')
 
-        mix_score = -(scores + pos)
+        mix_score = -(scores + pos + gcd)
         mix_score = mix_score.detach().cpu().numpy()
 
         mix_auc = roc_auc_score(labels, mix_score)

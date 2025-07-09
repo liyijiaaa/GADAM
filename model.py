@@ -120,10 +120,8 @@ class GlobalModel(nn.Module):
         super().__init__()
         self.g = graph
         self.discriminator = Discriminator(out_dim)
-        # self.beta = 0.9
-        self.bata1=0
-        self.bata2=0
-        self.bata3=0
+        self.beta = 0.9
+
         self.neigh_weight = 1. 
         self.loss = nn.BCEWithLogitsLoss()
         self.nor_idx = nor_idx
@@ -169,23 +167,17 @@ class GlobalModel(nn.Module):
         h = nei*mean_h + (1-nei)*h
         return h
 
-    def forward(self, feats, epoch,gcd):
+    def forward(self, feats, epoch):
         # 归一化GCD到[0,1]范围
-        gcd = (gcd - gcd.min()) / (gcd.max() - gcd.min() + 1e-8)
+        # gcd = (gcd - gcd.min()) / (gcd.max() - gcd.min() + 1e-8)
         h, mean_h = self.encoder(feats)
         pre_attn = self.pre_attention()
         post_attn = self.post_attention(h, mean_h)
-        # beta = math.pow(self.beta, epoch)
-        # if beta < 0.1:
-        #     beta = 0.
-        bata1=math.pow(self.bata1, epoch)
-        if bata1 < 0.1:
-             bata1 = 0.
+        beta = math.pow(self.beta, epoch)
+        if beta < 0.1:
+            beta = 0.
 
-        bata2=math.pow(self.bata2, epoch)
-        if bata2 < 0.1:
-             bata2 = 0.
-        attn = bata2*pre_attn + (1-bata1-bata2)*post_attn + bata1 * (gcd.unsqueeze(1))
+        attn = beta*pre_attn + (1-beta)*post_attn
 
 
         h = self.msg_pass(h, mean_h, attn)
