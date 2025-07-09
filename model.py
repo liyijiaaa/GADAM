@@ -129,7 +129,7 @@ class GlobalModel(nn.Module):
         self.center = center # high confidence normal center
 
         self.encoder = Encoder(graph, in_dim, out_dim, activation)
-        self.pre_attn = self.pre_attention()
+
 
 
     def pre_attention(self, gcd):
