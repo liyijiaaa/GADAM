@@ -196,8 +196,10 @@ def train_global(global_net, opt, graph, args, nor_idx, abnor_idx):
     pred_labels = np.zeros_like(labels)
 
     # 第二次修改：初始化原型
-    nor_feats = feats[nor_idx]
-    abnor_feats = feats[abnor_idx]
+    h, _ = global_net.encoder(feats)
+
+    nor_feats = h[nor_idx]
+    abnor_feats = h[abnor_idx]
 
     pos_vector = torch.mean(nor_feats, dim=0, keepdim=True)
     neg_vector = torch.mean(abnor_feats, dim=0, keepdim=True)
@@ -209,8 +211,8 @@ def train_global(global_net, opt, graph, args, nor_idx, abnor_idx):
 
             cosine_pos = cos(pos_vector, nor_feats)
             cosine_neg = cos(neg_vector, abnor_feats)
-            weights_pos = softmax_with_temperature(cosine_pos, t=3).reshape(1, -1)
-            weights_neg = softmax_with_temperature(cosine_neg, t=3).reshape(1, -1)
+            weights_pos = softmax_with_temperature(cosine_pos, t=5).reshape(1, -1)
+            weights_neg = softmax_with_temperature(cosine_neg, t=5).reshape(1, -1)
             # 更新原型
             pos_vector = torch.mm(weights_pos, nor_feats)
             neg_vector = torch.mm(weights_neg, abnor_feats)
@@ -234,15 +236,15 @@ def train_global(global_net, opt, graph, args, nor_idx, abnor_idx):
             pseudo_labels = torch.full((num_nodes,), 2, dtype=torch.long, device=device)  # 2表示未标记
             pseudo_labels[nor_idx] = 0  # 高置信度正常节点
             pseudo_labels[abnor_idx] = 1  # 高置信度异常节点
-            # gcd = simi[:, 0] * (pseudo_labels == 0) + simi[:, 1] * (pseudo_labels == 1) + (pseudo_labels == 2) * torch.max(simi, dim=1)[0]  # 未标记用最大值
-            gcd = simi[:, 0] * (pseudo_labels == 0) + simi[:, 1] * (pseudo_labels == 1) + (pseudo_labels == 2) * (simi[:, 1] - simi[:, 0])
+            gcd = simi[:, 0] * (pseudo_labels == 0) + simi[:, 1] * (pseudo_labels == 1) + (pseudo_labels == 2) * torch.max(simi, dim=1)[0]  # 未标记用最大值
+
 
 
         if epoch >= 3:
             t0 = time.time()
 
         opt.zero_grad()
-        loss, scores = global_net(feats, epoch)
+        loss, scores = global_net(feats, epoch, gcd)
         loss.backward()
         opt.step()
 
@@ -253,7 +255,7 @@ def train_global(global_net, opt, graph, args, nor_idx, abnor_idx):
             best = loss.item()
             torch.save(global_net.state_dict(), 'best_global_model.pkl')
 
-        mix_score = -(scores + pos + gcd)
+        mix_score = -(scores + pos)
         mix_score = mix_score.detach().cpu().numpy()
 
         mix_auc = roc_auc_score(labels, mix_score)
