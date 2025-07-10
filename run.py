@@ -219,8 +219,6 @@ def train_global(global_net, opt, graph, args, nor_idx, abnor_idx):
 
             # 特征归一化
 
-            # feats = bncos(feats)
-
             # 扩展原型向量以匹配特征维度
             pos_vector1 = pos_vector.repeat(len(feats), 1)
             neg_vector1 = neg_vector.repeat(len(feats), 1)
