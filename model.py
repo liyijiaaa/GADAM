@@ -120,7 +120,7 @@ class GlobalModel(nn.Module):
         super().__init__()
         self.g = graph
         self.discriminator = Discriminator(out_dim)
-        self.beta1 = 0.9
+        self.beta = 0.9
 
         self.neigh_weight = 1. 
         self.loss = nn.BCEWithLogitsLoss()
