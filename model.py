@@ -183,7 +183,7 @@ class GlobalModel(nn.Module):
         if beta2 < 0.1:
             beta2 = 0.
 
-        attn = beta1*pre_attn + (1-beta1-beta2)*post_attn +beta2 * gcd
+        attn = beta1*pre_attn + (1-beta1-beta2)*post_attn +beta2 * ( gcd.unsqueeze(1) )
 
         h = self.msg_pass(h, mean_h, attn)
 
