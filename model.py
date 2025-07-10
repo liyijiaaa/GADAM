@@ -132,7 +132,7 @@ class GlobalModel(nn.Module):
 
 
 
-    def pre_attention(self, gcd):
+    def pre_attention(self):
         # calculate pre-attn
         msg_func = lambda edges:{'abs_diff': torch.abs(edges.src['pos'] - edges.dst['pos'])}
         red_func = lambda nodes:{'pos_diff': torch.mean(nodes.mailbox['abs_diff'], dim=1)}
@@ -142,7 +142,7 @@ class GlobalModel(nn.Module):
         pos.requires_grad = False
 
         pos_diff = self.g.ndata['pos_diff'].detach()
-        pos_diff = pos_diff * gcd
+        pos_diff = pos_diff
 
         diff_mean = pos_diff[self.nor_idx].mean()
         diff_std = torch.sqrt(pos_diff[self.nor_idx].var())
@@ -170,8 +170,9 @@ class GlobalModel(nn.Module):
 
     def forward(self, feats, epoch, gcd):
         h, mean_h = self.encoder(feats)
-        pre_attn = self.pre_attention(gcd)
-        post_attn = self.post_attention(h, mean_h)
+        pre_attn = self.pre_attention()
+        #post_attn = self.post_attention(h, mean_h)
+        post_attn = gcd.unsqueeze(1)
         beta = math.pow(self.beta, epoch)
         if beta < 0.1:
             beta = 0.
