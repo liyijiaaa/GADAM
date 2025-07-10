@@ -234,8 +234,8 @@ def train_global(global_net, opt, graph, args, nor_idx, abnor_idx):
             pseudo_labels = torch.full((num_nodes,), 2, dtype=torch.long, device=device)  # 2表示未标记
             pseudo_labels[nor_idx] = 0  # 高置信度正常节点
             pseudo_labels[abnor_idx] = 1  # 高置信度异常节点
-            gcd = simi[:, 0] * (pseudo_labels == 0) + simi[:, 1] * (pseudo_labels == 1) + (pseudo_labels == 2) * torch.max(simi, dim=1)[0]  # 未标记用最大值
-
+            #gcd = simi[:, 0] * (pseudo_labels == 0) + simi[:, 1] * (pseudo_labels == 1) + (pseudo_labels == 2) * torch.max(simi, dim=1)[0]  # 未标记用最大值
+            gcd = torch.max(simi, dim=1)[0]
 
 
         if epoch >= 3:
