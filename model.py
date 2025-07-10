@@ -120,7 +120,8 @@ class GlobalModel(nn.Module):
         super().__init__()
         self.g = graph
         self.discriminator = Discriminator(out_dim)
-        self.beta = 0.9
+        self.beta1 = 0.6
+        self.beta2 =0.3
 
         self.neigh_weight = 1. 
         self.loss = nn.BCEWithLogitsLoss()
@@ -169,15 +170,20 @@ class GlobalModel(nn.Module):
         return h
 
     def forward(self, feats, epoch, gcd):
+        gcd = torch.sigmoid(gcd)
         h, mean_h = self.encoder(feats)
         pre_attn = self.pre_attention()
-        #post_attn = self.post_attention(h, mean_h)
-        post_attn = gcd.unsqueeze(1)
-        beta = math.pow(self.beta, epoch)
-        if beta < 0.1:
-            beta = 0.
+        post_attn = self.post_attention(h, mean_h)
 
-        attn = beta*pre_attn + (1-beta)*post_attn
+        beta1 = math.pow(self.beta1, epoch)
+        if beta1 < 0.1:
+            beta1 = 0.
+
+        beta2 = math.pow(self.beta2, epoch)
+        if beta2 < 0.1:
+            beta2 = 0.
+
+        attn = beta1*pre_attn + (1-beta1-beta2)*post_attn +beta2 * gcd
 
         h = self.msg_pass(h, mean_h, attn)
 
