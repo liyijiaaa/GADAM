@@ -120,8 +120,7 @@ class GlobalModel(nn.Module):
         super().__init__()
         self.g = graph
         self.discriminator = Discriminator(out_dim)
-        self.beta1 = 0.6
-        self.beta2 =0.3
+        self.beta1 = 0.9
 
         self.neigh_weight = 1. 
         self.loss = nn.BCEWithLogitsLoss()
@@ -133,29 +132,29 @@ class GlobalModel(nn.Module):
 
 
 
-    def pre_attention(self):
+    def pre_attention(self,gcd):
         # calculate pre-attn
-        msg_func = lambda edges:{'abs_diff': torch.abs(edges.src['pos'] - edges.dst['pos'])}
-        red_func = lambda nodes:{'pos_diff': torch.mean(nodes.mailbox['abs_diff'], dim=1)}
-        self.g.update_all(msg_func, red_func)
+        # msg_func = lambda edges:{'abs_diff': torch.abs(edges.src['pos'] - edges.dst['pos'])}
+        # red_func = lambda nodes:{'pos_diff': torch.mean(nodes.mailbox['abs_diff'], dim=1)}
+        # self.g.update_all(msg_func, red_func)
+        #
+        # pos = self.g.ndata['pos']
+        # pos.requires_grad = False
+        #
+        # pos_diff = self.g.ndata['pos_diff'].detach()
+        # pos_diff = pos_diff
+        #
+        # diff_mean = pos_diff[self.nor_idx].mean()
+        # diff_std = torch.sqrt(pos_diff[self.nor_idx].var())
+        #
+        # normalized_pos = (pos_diff - diff_mean) / diff_std
+        #
+        # attn = 1-torch.sigmoid(normalized_pos)
+        #
+        # return attn.unsqueeze(1)
 
-        pos = self.g.ndata['pos']
-        pos.requires_grad = False
-
-        pos_diff = self.g.ndata['pos_diff'].detach()
-        pos_diff = pos_diff
-
-        diff_mean = pos_diff[self.nor_idx].mean()
-        diff_std = torch.sqrt(pos_diff[self.nor_idx].var())
-
-        normalized_pos = (pos_diff - diff_mean) / diff_std
-
-        attn = 1-torch.sigmoid(normalized_pos)
-
-        return attn.unsqueeze(1)
-
-        # gcd = torch.sigmoid(gcd)
-        # return gcd.unsqueeze(1)
+        gcd = torch.sigmoid(gcd)
+        return gcd.unsqueeze(1)
 
     def post_attention(self, h, mean_h):
         # calculate post-attn
@@ -170,20 +169,18 @@ class GlobalModel(nn.Module):
         return h
 
     def forward(self, feats, epoch, gcd):
-        gcd = torch.sigmoid(gcd)
+
         h, mean_h = self.encoder(feats)
-        pre_attn = self.pre_attention()
+        pre_attn = self.pre_attention(gcd)
         post_attn = self.post_attention(h, mean_h)
 
-        beta1 = math.pow(self.beta1, epoch)
-        if beta1 < 0.1:
-            beta1 = 0.
+        beta = math.pow(self.beta, epoch)
+        if beta < 0.1:
+            beta = 0.
 
-        beta2 = math.pow(self.beta2, epoch)
-        if beta2 < 0.1:
-            beta2 = 0.
 
-        attn = beta1*pre_attn + (1-beta1-beta2)*post_attn +beta2 * ( gcd.unsqueeze(1) )
+
+        attn = beta*pre_attn + (1-beta)*post_attn
 
         h = self.msg_pass(h, mean_h, attn)
 
