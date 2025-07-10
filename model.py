@@ -132,29 +132,29 @@ class GlobalModel(nn.Module):
 
 
 
-    def pre_attention(self,gcd):
-        # calculate pre-attn
-        # msg_func = lambda edges:{'abs_diff': torch.abs(edges.src['pos'] - edges.dst['pos'])}
-        # red_func = lambda nodes:{'pos_diff': torch.mean(nodes.mailbox['abs_diff'], dim=1)}
-        # self.g.update_all(msg_func, red_func)
-        #
-        # pos = self.g.ndata['pos']
-        # pos.requires_grad = False
-        #
-        # pos_diff = self.g.ndata['pos_diff'].detach()
-        # pos_diff = pos_diff
-        #
-        # diff_mean = pos_diff[self.nor_idx].mean()
-        # diff_std = torch.sqrt(pos_diff[self.nor_idx].var())
-        #
-        # normalized_pos = (pos_diff - diff_mean) / diff_std
-        #
-        # attn = 1-torch.sigmoid(normalized_pos)
-        #
-        # return attn.unsqueeze(1)
+    def pre_attention(self):
+      #  calculate pre-attn
+        msg_func = lambda edges:{'abs_diff': torch.abs(edges.src['pos'] - edges.dst['pos'])}
+        red_func = lambda nodes:{'pos_diff': torch.mean(nodes.mailbox['abs_diff'], dim=1)}
+        self.g.update_all(msg_func, red_func)
 
-        gcd = torch.sigmoid(gcd)
-        return gcd.unsqueeze(1)
+        pos = self.g.ndata['pos']
+        pos.requires_grad = False
+
+        pos_diff = self.g.ndata['pos_diff'].detach()
+        pos_diff = pos_diff
+
+        diff_mean = pos_diff[self.nor_idx].mean()
+        diff_std = torch.sqrt(pos_diff[self.nor_idx].var())
+
+        normalized_pos = (pos_diff - diff_mean) / diff_std
+
+        attn = 1-torch.sigmoid(normalized_pos)
+
+        return attn.unsqueeze(1)
+
+        # gcd = torch.sigmoid(gcd)
+        # return gcd.unsqueeze(1)
 
     def post_attention(self, h, mean_h):
         # calculate post-attn
@@ -168,10 +168,10 @@ class GlobalModel(nn.Module):
         h = nei*mean_h + (1-nei)*h
         return h
 
-    def forward(self, feats, epoch, gcd):
+    def forward(self, feats, epoch):
 
         h, mean_h = self.encoder(feats)
-        pre_attn = self.pre_attention(gcd)
+        pre_attn = self.pre_attention()
         post_attn = self.post_attention(h, mean_h)
 
         beta = math.pow(self.beta, epoch)

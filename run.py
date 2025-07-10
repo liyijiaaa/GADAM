@@ -241,7 +241,7 @@ def train_global(global_net, opt, graph, args, nor_idx, abnor_idx):
             t0 = time.time()
 
         opt.zero_grad()
-        loss, scores = global_net(feats, epoch, gcd)
+        loss, scores = global_net(feats, epoch)
         loss.backward()
         opt.step()
 
@@ -252,7 +252,7 @@ def train_global(global_net, opt, graph, args, nor_idx, abnor_idx):
             best = loss.item()
             torch.save(global_net.state_dict(), 'best_global_model.pkl')
 
-        mix_score = -(scores + pos)
+        mix_score = -((gcd* scores + (1-gcd) *pos))
         mix_score = mix_score.detach().cpu().numpy()
 
         mix_auc = roc_auc_score(labels, mix_score)
