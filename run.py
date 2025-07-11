@@ -161,11 +161,18 @@ def gen_edge_attn(emb, edge_index):
         attn_logits = cos(f1, f2)
         return attn_logits
 
-def gen_dgl_graph(index1, index2, edge_w=None, ndata=None):
+def gen_dgl_graph(index1, index2, edge_w=None, ndata1=None, ndata2=None,ndata3=None):
     g = dgl.graph((index1, index2))
-    if ndata is not None:
-        for key in ndata.keys():
-            g.ndata[key] = ndata[key]  # 复制所有节点属性
+    if ndata1 is not None:
+        g.ndata['feat'] = ndata1
+
+    if ndata2 is not None:
+        g.ndata['pos'] = ndata2
+
+    if ndata3 is not None:
+        g.ndata['label'] = ndata3
+
+
     return g
 
  #全局修改，更新图结构
@@ -180,7 +187,10 @@ def update_graph(graph, h):
     filtered_edge = (graph.edges()[0][edge_attn > 0.1], graph.edges()[1][edge_attn > 0.1])
     new_g = gen_dgl_graph(torch.cat((filtered_edge[0], new_edges[0])),
                           torch.cat((filtered_edge[1], new_edges[1])),
-                          ndata={k: graph.ndata[k] for k in ['feat', 'pos', 'label']}).to('cpu')
+                          ndata1=graph.ndata['feat'],
+                          ndata2 = graph.ndata['pos'],
+                          ndata3 = graph.ndata['label']).to('cpu')
+
     new_g = dgl.to_simple(new_g)
 
     # 关键修改：将 DGL SparseMatrix 转换为 PyTorch 稀疏张量
