@@ -221,9 +221,9 @@ def train_global(global_net, opt, graph, args):
                                   torch.cat((filtered_edge[1], new_edges[1])),
                                   ndata=graph.ndata['feat']).to('cpu')
             new_g = dgl.to_simple(new_g)
-            Adj = normalize(new_g.adj(), 'sym', 1) #对称
-            new_g = gen_dgl_graph(Adj.indices()[0], Adj.indices()[1], Adj.values(), graph.ndata['feat'].to('cpu'))
-            Adj = new_g.adj()
+            # Adj = normalize(new_g.adj(), 'sym', 1) #对称
+            # new_g = gen_dgl_graph(Adj.indices()[0], Adj.indices()[1], Adj.values(), graph.ndata['feat'].to('cpu'))
+            # Adj = new_g.adj()
             new_g = new_g.to(args.cpu)
             graph=new_g
             feats = graph.ndata['feat']
