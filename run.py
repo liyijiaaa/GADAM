@@ -166,7 +166,8 @@ def gen_dgl_graph(index1, index2, edge_w=None, ndata=None):
     if edge_w is not None:
         g.edata['w'] = edge_w
     if ndata is not None:
-        g.ndata['feat'] = ndata
+        for key in ndata.keys():
+            g.ndata[key] = ndata[key]  # 复制所有节点属性
     return g
 
 def train_global(global_net, opt, graph, args):
@@ -200,7 +201,7 @@ def train_global(global_net, opt, graph, args):
 
     pred_labels = np.zeros_like(labels)
     #全局修改，动态更新图结构
-    update_epoch = 10
+    update_epoch = 15
     for epoch in range(epochs):
         global_net.train()
 
@@ -219,7 +220,7 @@ def train_global(global_net, opt, graph, args):
             filtered_edge = (graph.edges()[0][edge_attn > 0.1], graph.edges()[1][edge_attn > 0.1])
             new_g = gen_dgl_graph(torch.cat((filtered_edge[0], new_edges[0])),
                                   torch.cat((filtered_edge[1], new_edges[1])),
-                                  ndata=graph.ndata['feat']).to('cpu')
+                                  ndata={k: graph.ndata[k] for k in ['feat', 'pos']}).to('cpu')
             new_g = dgl.to_simple(new_g)
             # Adj = normalize(new_g.adj(), 'sym', 1) #对称
             # new_g = gen_dgl_graph(Adj.indices()[0], Adj.indices()[1], Adj.values(), graph.ndata['feat'].to('cpu'))
