@@ -93,3 +93,37 @@ def pyg_to_dgl(pyg_graph):
 
     return dgl_graph
 
+#选择隐藏节点
+def top_k_graph_based_on_edge_attn(node_embeddings, k, device):
+    node_embeddings = node_embeddings.to(device)
+    knn_g = dgl.knn_graph(node_embeddings, k, algorithm='bruteforce-sharemem', dist='cosine', exclude_self=False)
+
+    return knn_g.edges()
+
+def normalize(adj, mode, sparse=True):
+    if not sparse:
+        if mode == "sym":
+            inv_sqrt_degree = 1. / \
+                              (torch.sqrt(adj.sum(dim=1, keepdim=False)) + EOS)
+            return inv_sqrt_degree[:, None] * adj * inv_sqrt_degree[None, :]
+        elif mode == "row":
+            inv_degree = 1. / (adj.sum(dim=1, keepdim=False) + EOS)
+            return inv_degree[:, None] * adj
+        else:
+            exit("wrong norm mode")
+    else:
+        adj = adj.coalesce()
+        if mode == "sym":
+            inv_sqrt_degree = 1. / \
+                              (torch.sqrt(torch.sparse.sum(adj, dim=1).values()))
+            D_value = inv_sqrt_degree[adj.indices(
+            )[0]] * inv_sqrt_degree[adj.indices()[1]]
+
+        elif mode == "row":
+            inv_degree = 1. / (torch.sparse.sum(adj, dim=1).values() + EOS)
+            D_value = inv_degree[adj.indices()[0]]
+        else:
+            exit("wrong norm mode")
+        new_values = adj.values() * D_value
+
+        return torch.sparse.FloatTensor(adj.indices(), new_values, adj.size()).coalesce()

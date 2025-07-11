@@ -18,11 +18,11 @@ class MLP(nn.Module):
         #     activation,
         #     nn.Linear(hid_dim, out_dim),
         #     nn.Dropout(p=dropout)
-        # ])  
+        # ])
         self.encoder = nn.ModuleList([
             nn.Linear(in_dim, out_dim),
             activation,
-        ])  
+        ])
     
     def forward(self, features):
         h = features
@@ -79,7 +79,7 @@ class Encoder(nn.Module):
         
     def forward(self, h):
         h = self.encoder(h)
-        mean_h = self.meanAgg(self.g ,h)
+        mean_h = self.meanAgg(self.g ,h) #邻居聚合得到子图表示
 
         return h, mean_h
 

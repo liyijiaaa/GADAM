@@ -152,6 +152,22 @@ def load_info_from_local(local_net,nor_idx,abnor_idx,device):
 
     return memo, nor_idx, abnor_idx, center
 
+def gen_edge_attn(emb, edge_index):
+        cos = nn.CosineSimilarity(dim=1)
+        # 源节点和目标节点的索引
+        col, row = edge_index
+        #得到两个特征
+        f1, f2 = emb[col], emb[row]
+        attn_logits = cos(f1, f2)
+        return attn_logits
+
+def gen_dgl_graph(index1, index2, edge_w=None, ndata=None):
+    g = dgl.graph((index1, index2))
+    if edge_w is not None:
+        g.edata['w'] = edge_w
+    if ndata is not None:
+        g.ndata['h'] = ndata
+    return g
 
 def train_global(global_net, opt, graph, args):
     epochs = args.global_epochs
@@ -183,8 +199,38 @@ def train_global(global_net, opt, graph, args):
     dur = []
 
     pred_labels = np.zeros_like(labels)
+    #全局修改，动态更新图结构
+    update_epoch = 10
     for epoch in range(epochs):
         global_net.train()
+
+        #修改
+        if (epoch+1) % update_epoch == 0:
+            # 获得节点嵌入
+            h, _ = global_net.encoder(graph.ndata['feat'])
+
+            # 得到新的隐藏节点的边
+            new_edges = top_k_graph_based_on_edge_attn(h, k=10, device=args.gpu)
+
+            # 计算homey矩阵——绝对值
+            edge_attn = torch.abs(gen_edge_attn(h, graph.edges()))
+
+            # 过滤边-0.1阈值
+            filtered_edge = (graph.edges()[0][edge_attn > 0.1], graph.edges()[1][edge_attn > 0.1])
+            new_g = gen_dgl_graph(torch.cat((filtered_edge[0], new_edges[0])),
+                                  torch.cat((filtered_edge[1], new_edges[1])),
+                                  ndata=graph.ndata['feat']).to('cpu')
+            new_g = dgl.to_simple(new_g)
+            Adj = normalize(new_g.adj(), 'sym', 1) #对称
+            new_g = gen_dgl_graph(Adj.indices()[0], Adj.indices()[1], Adj.values(), graph.ndata['feat'].to('cpu'))
+            Adj = new_g.adj()
+            new_g = new_g.to(args.cpu)
+            graph=new_g
+            feats = graph.ndata['feat']
+            global_net.g = new_g  # 更新模型内部图引用
+            global_net.encoder.g = new_g  # 更新编码器中的图引用
+
+
         if epoch >= 3:
             t0 = time.time()
 
