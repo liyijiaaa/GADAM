@@ -100,6 +100,7 @@ def top_k_graph_based_on_edge_attn(node_embeddings, k, device):
 
     return knn_g.edges()
 
+
 def normalize(adj, mode, sparse=True):
     if not sparse:
         if mode == "sym":

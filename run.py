@@ -54,6 +54,7 @@ def train_local(net, graph, feats, opt, args, memorybank_nor,memorybank_abnor,in
         pos = graph.ndata['pos']
         train_ano_score[epoch] = -pos.detach().view(-1)
 
+
         if epoch > 0:
             #动态添加正太池
             _, train_list_temp = train_ano_score[epoch - 1].topk(
