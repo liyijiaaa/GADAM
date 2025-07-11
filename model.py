@@ -83,6 +83,7 @@ class Encoder(nn.Module):
 
         return h, mean_h
 
+
 class LocalModel(nn.Module):
     # LIM module
     def __init__(self, graph, in_dim, out_dim, activation) -> None:
