@@ -23,7 +23,8 @@ class MLP(nn.Module):
             nn.Linear(in_dim, out_dim),
             activation,
         ])
-    
+
+
     def forward(self, features):
         h = features
         for layer in self.encoder:
