@@ -136,7 +136,8 @@ class GlobalModel(nn.Module):
         red_func = lambda nodes:{'pos_diff': torch.mean(nodes.mailbox['abs_diff'], dim=1)}
         self.g.update_all(msg_func, red_func)
 
-        pos = self.g.ndata['pos']
+        #pos = self.g.ndata['pos']
+        pos = self.g.ndata['pos'].detach()
         pos.requires_grad = False
 
         pos_diff = self.g.ndata['pos_diff'].detach()
