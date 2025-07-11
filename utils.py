@@ -102,8 +102,7 @@ def top_k_graph_based_on_edge_attn(node_embeddings, k, device):
 
 
 def normalize1(adj, mode, sparse=True):
-    if isinstance(adj, dgl.sparse.SparseMatrix):
-        adj = adj.to_torch_sparse()  # 将 DGL 的 SparseMatrix 转换为 PyTorch 的稀疏张量
+
     if not sparse:
         if mode == "sym":
             inv_sqrt_degree = 1. / \

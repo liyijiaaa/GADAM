@@ -182,7 +182,16 @@ def update_graph(graph, h):
                           torch.cat((filtered_edge[1], new_edges[1])),
                           ndata={k: graph.ndata[k] for k in ['feat', 'pos', 'label']}).to('cpu')
     new_g = dgl.to_simple(new_g)
-    Adj = normalize1(new_g.adj(), 'sym', 1) #对称
+
+    # 关键修改：将 DGL SparseMatrix 转换为 PyTorch 稀疏张量
+    adj_sparse = new_g.adj_external(scipy_fmt='coo')
+    adj_tensor = torch.sparse_coo_tensor(
+        indices=torch.stack([torch.tensor(adj_sparse.row), torch.tensor(adj_sparse.col)]),
+        values=torch.tensor(adj_sparse.data),
+        size=adj_sparse.shape
+    )
+
+    Adj = normalize1(adj_tensor, 'sym', 1) #对称
     new_g = gen_dgl_graph(Adj.indices()[0], Adj.indices()[1], Adj.values(), graph.ndata['feat'].to('cpu'))
     new_g = new_g.to(args.gpu)
     return new_g
