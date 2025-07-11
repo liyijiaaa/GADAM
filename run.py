@@ -200,13 +200,13 @@ def train_global(global_net, opt, graph, args):
     dur = []
 
     pred_labels = np.zeros_like(labels)
-    #全局修改，动态更新图结构
-    update_epoch = 15
+    #全局修改，更新图结构
+
     for epoch in range(epochs):
         global_net.train()
 
         #修改
-        if (epoch+1) % update_epoch == 0:
+        if epoch == 25:
             # 获得节点嵌入
             h, _ = global_net.encoder(graph.ndata['feat'])
 
@@ -227,16 +227,18 @@ def train_global(global_net, opt, graph, args):
             # Adj = new_g.adj()
             new_g = new_g.to(args.gpu)
             graph=new_g
-            feats = graph.ndata['feat']
+
             global_net.g = new_g  # 更新模型内部图引用
             global_net.encoder.g = new_g  # 更新编码器中的图引用
+            new_feats = global_net.encoder(new_g.ndata['feat'])
+            new_g.ndata['feat']= new_feats.detach()
 
 
         if epoch >= 3:
             t0 = time.time()
 
         opt.zero_grad()
-        loss, scores = global_net(feats, epoch)
+        loss, scores = global_net(new_g.ndata['feat'], epoch)
         loss.backward()
         opt.step()
 
