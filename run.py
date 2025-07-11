@@ -224,7 +224,7 @@ def train_global(global_net, opt, graph, args):
             # Adj = normalize(new_g.adj(), 'sym', 1) #对称
             # new_g = gen_dgl_graph(Adj.indices()[0], Adj.indices()[1], Adj.values(), graph.ndata['feat'].to('cpu'))
             # Adj = new_g.adj()
-            new_g = new_g.to(args.cpu)
+            new_g = new_g.to(args.gpu)
             graph=new_g
             feats = graph.ndata['feat']
             global_net.g = new_g  # 更新模型内部图引用
