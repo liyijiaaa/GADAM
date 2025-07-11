@@ -166,7 +166,7 @@ def gen_dgl_graph(index1, index2, edge_w=None, ndata=None):
     if edge_w is not None:
         g.edata['w'] = edge_w
     if ndata is not None:
-        g.ndata['h'] = ndata
+        g.ndata['feat'] = ndata
     return g
 
 def train_global(global_net, opt, graph, args):
