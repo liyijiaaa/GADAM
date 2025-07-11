@@ -163,12 +163,32 @@ def gen_edge_attn(emb, edge_index):
 
 def gen_dgl_graph(index1, index2, edge_w=None, ndata=None):
     g = dgl.graph((index1, index2))
-    if edge_w is not None:
-        g.edata['w'] = edge_w
     if ndata is not None:
         for key in ndata.keys():
             g.ndata[key] = ndata[key]  # 复制所有节点属性
     return g
+
+ #全局修改，更新图结构
+def update_graph(graph, h):
+    # 得到新的隐藏节点的边
+    new_edges = top_k_graph_based_on_edge_attn(h, k=10, device=args.gpu)
+
+    # 计算homey矩阵——绝对值
+    edge_attn = torch.abs(gen_edge_attn(h, graph.edges()))
+
+    # 过滤边-0.1阈值
+    filtered_edge = (graph.edges()[0][edge_attn > 0.1], graph.edges()[1][edge_attn > 0.1])
+    new_g = gen_dgl_graph(torch.cat((filtered_edge[0], new_edges[0])),
+                          torch.cat((filtered_edge[1], new_edges[1])),
+                          ndata={k: graph.ndata[k] for k in ['feat', 'pos', 'label']}).to('cpu')
+    new_g = dgl.to_simple(new_g)
+    # Adj = normalize(new_g.adj(), 'sym', 1) #对称
+    # new_g = gen_dgl_graph(Adj.indices()[0], Adj.indices()[1], Adj.values(), graph.ndata['feat'].to('cpu'))
+    # Adj = new_g.adj()
+    new_g = new_g.to(args.gpu)
+    return new_g
+
+
 
 def train_global(global_net, opt, graph, args):
     epochs = args.global_epochs
@@ -200,45 +220,16 @@ def train_global(global_net, opt, graph, args):
     dur = []
 
     pred_labels = np.zeros_like(labels)
-    #全局修改，更新图结构
 
     for epoch in range(epochs):
         global_net.train()
-
-        #修改
-        if epoch == 25:
-            # 获得节点嵌入
-            h, _ = global_net.encoder(graph.ndata['feat'])
-
-            # 得到新的隐藏节点的边
-            new_edges = top_k_graph_based_on_edge_attn(h, k=10, device=args.gpu)
-
-            # 计算homey矩阵——绝对值
-            edge_attn = torch.abs(gen_edge_attn(h, graph.edges()))
-
-            # 过滤边-0.1阈值
-            filtered_edge = (graph.edges()[0][edge_attn > 0.1], graph.edges()[1][edge_attn > 0.1])
-            new_g = gen_dgl_graph(torch.cat((filtered_edge[0], new_edges[0])),
-                                  torch.cat((filtered_edge[1], new_edges[1])),
-                                  ndata={k: graph.ndata[k] for k in ['feat', 'pos']}).to('cpu')
-            new_g = dgl.to_simple(new_g)
-            # Adj = normalize(new_g.adj(), 'sym', 1) #对称
-            # new_g = gen_dgl_graph(Adj.indices()[0], Adj.indices()[1], Adj.values(), graph.ndata['feat'].to('cpu'))
-            # Adj = new_g.adj()
-            new_g = new_g.to(args.gpu)
-            graph=new_g
-
-            global_net.g = new_g  # 更新模型内部图引用
-            global_net.encoder.g = new_g  # 更新编码器中的图引用
-            new_feats = global_net.encoder(new_g.ndata['feat'])
-            new_g.ndata['feat']= new_feats.detach()
 
 
         if epoch >= 3:
             t0 = time.time()
 
         opt.zero_grad()
-        loss, scores = global_net(new_g.ndata['feat'], epoch)
+        loss, scores = global_net(feats, epoch)
         loss.backward()
         opt.step()
 
@@ -304,6 +295,11 @@ def main(args):
 
     t2 = time.time()
     graph = memo['graph']
+
+    #更新图
+    h = memo['h']
+    graph = update_graph(graph, h)
+
     global_net = GlobalModel(graph, 
                              in_feats, 
                              args.out_dim, 

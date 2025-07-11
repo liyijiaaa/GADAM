@@ -128,7 +128,7 @@ class GlobalModel(nn.Module):
         self.ano_idx = ano_idx
         self.center = center # high confidence normal center
         self.encoder = Encoder(graph, in_dim, out_dim, activation)
-
+        self.pre_attn = self.pre_attention()
 
     def pre_attention(self):
         # calculate pre-attn
@@ -166,7 +166,6 @@ class GlobalModel(nn.Module):
         h, mean_h = self.encoder(feats)
 
         post_attn = self.post_attention(h, mean_h)
-        self.pre_attn = self.pre_attention()
         beta = math.pow(self.beta, epoch)
         if beta < 0.1:
             beta = 0.
