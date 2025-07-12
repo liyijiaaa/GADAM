@@ -297,7 +297,6 @@ def main(args):
         graph = graph.to(args.gpu)
 
     in_feats = feats.shape[1]
-
     #初始化局部分数网络模型
     local_net = LocalModel(graph,
                      in_feats,

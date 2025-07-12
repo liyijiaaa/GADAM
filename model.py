@@ -185,6 +185,7 @@ class GlobalModel(nn.Module):
     def forward(self, feats, epoch):
         h, mean_h = self.encoder(feats)
 
+
         post_attn = self.post_attention(h, mean_h)
         beta = math.pow(self.beta, epoch)
         if beta < 0.1:
