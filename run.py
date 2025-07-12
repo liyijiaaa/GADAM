@@ -285,10 +285,10 @@ def main(args):
     seed_everything(args.seed)
 
     graph = my_load_data(args.data)
-    # graph = graph.add_self_loop() test encoder=GCN
+    graph = graph.add_self_loop() #test encoder=GCN
     feats = graph.ndata['feat']
     labels = graph.ndata['label']
-    nclasses = len(torch.unique(labels))
+
     #修改,添加了一个正太池和异常池
     memorybank_nor = []
     memorybank_abnor=[]
@@ -318,9 +318,9 @@ def main(args):
     graph = memo['graph']
 
     #更新图GNN更新
-    #h = memo['h']
+    h = memo['h']
 
-    h=local_net.encoder.encoder2(graph.ndata['feat'])
+    #h=local_net.encoder.encoder2(graph.ndata['feat'])
 
     #得到更新以后的图
     graph = update_graph(graph, h)

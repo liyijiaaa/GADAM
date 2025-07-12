@@ -78,7 +78,7 @@ class Encoder(nn.Module):
     def __init__(self, graph, in_dim,  out_dim, activation):
         super().__init__()
         self.encoder = MLP(in_dim, out_dim, activation)
-        self.encoder2 = GCN(graph, in_dim, out_dim, activation, dropout=0.)
+        #self.encoder2 = GCN(graph, in_dim, out_dim, activation, dropout=0.)
         self.meanAgg = MeanAggregator()
         self.g = graph
         
@@ -89,6 +89,19 @@ class Encoder(nn.Module):
         return h, mean_h
 
 
+class Encoder2(nn.Module):
+    def __init__(self, graph, in_dim, out_dim, activation):
+        super().__init__()
+        self.encoder = MLP(in_dim, out_dim, activation)
+        # self.encoder2 = GCN(graph, in_dim, out_dim, activation, dropout=0.)
+        self.meanAgg = MeanAggregator()
+        self.g = graph
+
+    def forward(self, h):
+        h = self.encoder(h)
+        mean_h = self.meanAgg(self.g, h)  # 邻居聚合得到子图表示
+
+        return h, mean_h
 
 
 
@@ -96,7 +109,7 @@ class LocalModel(nn.Module):
     # LIM module
     def __init__(self, graph, in_dim, out_dim, activation) -> None:
         super().__init__()
-        self.encoder = Encoder(graph, in_dim, out_dim, activation)
+        self.encoder = Encoder2(graph, in_dim, out_dim, activation)
 
         self.g = graph
         self.discriminator = Discriminator(out_dim)
