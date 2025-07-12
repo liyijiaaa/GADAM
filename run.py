@@ -320,7 +320,7 @@ def main(args):
     #更新图GNN更新
     #h = memo['h']
 
-    h=local_net.encoder2(graph.ndata['feat'])
+    h=local_net.encoder.encoder2(graph.ndata['feat'])
 
     #得到更新以后的图
     graph = update_graph(graph, h)
