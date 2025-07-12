@@ -186,6 +186,7 @@ def update_graph(graph, model, feats):
     # 计算homey矩阵——绝对值
     edge_attn = torch.abs(gen_edge_attn(h, graph.edges()))
 
+
     # 过滤边
     threshold = np.percentile(edge_attn.detach().cpu().numpy(), 15)
     filtered_edge = (graph.edges()[0][edge_attn > threshold], graph.edges()[1][edge_attn > threshold])

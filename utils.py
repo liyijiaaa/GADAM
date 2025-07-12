@@ -102,7 +102,6 @@ def top_k_graph_based_on_edge_attn(node_embeddings, k, device):
 
 
 def normalize1(adj, mode, sparse=True):
-
     if not sparse:
         if mode == "sym":
             inv_sqrt_degree = 1. / \
