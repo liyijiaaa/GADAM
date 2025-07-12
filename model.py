@@ -107,7 +107,7 @@ class LocalModel(nn.Module):
     # LIM module
     def __init__(self, graph, in_dim, out_dim, activation) -> None:
         super().__init__()
-        self.encoder = Encoder2(graph, in_dim, out_dim, activation)
+        self.encoder = Encoder(graph, in_dim, out_dim, activation)
         self.g = graph
         self.discriminator = Discriminator(out_dim)
         self.loss = nn.BCEWithLogitsLoss()
