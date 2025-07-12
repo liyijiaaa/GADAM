@@ -173,6 +173,7 @@ def gen_dgl_graph(index1, index2, edge_w=None, ndata1=None, ndata2=None,ndata3=N
         g.ndata['label'] = ndata3
 
 
+
     return g
 
  #全局修改，更新图结构
