@@ -192,6 +192,7 @@ def update_graph(graph, h):
                           ndata2 = graph.ndata['pos'],
                           ndata3 = graph.ndata['label']).to('cpu')
 
+
     new_g = dgl.to_simple(new_g)
 
     # 将 DGL SparseMatrix 转换为 PyTorch 稀疏张量
