@@ -177,10 +177,7 @@ def gen_dgl_graph(index1, index2, edge_w=None, ndata1=None, ndata2=None,ndata3=N
     return g
 
  #全局修改，更新图结构
-def update_graph(graph, model, feats):
-    with torch.no_grad():
-        h = model.gen_node_emb(feats, graph)
-
+def update_graph(graph, h):
     # 得到新的隐藏节点的边
     new_edges = top_k_graph_based_on_edge_attn(h, k=15, device=args.gpu)
     # 计算homey矩阵——绝对值
@@ -322,20 +319,12 @@ def main(args):
     graph = memo['graph']
 
     #更新图GNN更新
-    #h = memo['h']
-    update_net = GPR_ATT(
-        in_channels=in_feats,
-        hidden_channels=16,
-        out_channels=nclasses,
-        num_layers=2,
-        dropout=0.2,
-        dropout_adj=0.1,
-        device=args.gpu
-    )
+    h = memo['h']
+
     #h=local_net.encoder.encoder2(graph.ndata['feat'])
 
     #得到更新以后的图
-    graph = update_graph(graph, update_net, graph.ndata['feat'] )
+    graph = update_graph(graph, h)
 
     #全局训练的模型MLP
     global_net = GlobalModel(graph, 
