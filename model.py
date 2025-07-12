@@ -7,6 +7,10 @@ from dgl.nn.pytorch import GraphConv
 import math
 from utils import idx_sample, row_normalization
 
+#添加
+
+import numpy as np
+
 
 
 class MLP(nn.Module):
@@ -185,3 +189,96 @@ class GlobalModel(nn.Module):
         center_loss = pos_center_loss + neg_center_loss
 
         return center_loss, scores
+
+
+
+#修改图更新的节点嵌入
+
+class GPR_ATT(nn.Module):
+    def __init__(self, in_channels, hidden_channels, out_channels, num_layers, dropout, dropout_adj, device):
+        super(GPR_ATT, self).__init__()
+
+        self.device = device
+        self.inlinear = nn.Linear(in_channels, hidden_channels)
+        self.outlinear = nn.Linear(hidden_channels, out_channels)
+
+        torch.nn.init.xavier_uniform_(self.inlinear.weight)
+        torch.nn.init.xavier_uniform_(self.outlinear.weight)
+
+        self.gnn = GPR_sparse(hidden_channels, num_layers, dropout, dropout_adj)
+        self.extractor = ExtractorMLP(hidden_channels)
+
+    def forward(self, x, g):
+        with g.local_scope():
+            h = self.inlinear(x)
+            h_gnn = self.gnn.forward(h, g, edge_attn=True)
+            return self.outlinear(h_gnn)
+
+    def gen_node_emb(self, x, g):
+        with g.local_scope():
+            h = self.inlinear(x)
+            h_gnn = self.gnn.forward(h, g, edge_attn=True)
+            h_gnn = self.extractor.feature_extractor(h_gnn)
+            return h_gnn
+
+
+
+class ExtractorMLP(nn.Module):
+    def __init__(self, hidden_size, activation='relu', dropout=0.2):
+        super(ExtractorMLP, self).__init__()
+        self.feature_extractor = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size),
+            nn.Dropout(p=dropout),
+            nn.ReLU(inplace=True),
+            nn.Linear(hidden_size, hidden_size),
+        )
+        self.cos = nn.CosineSimilarity(dim=1)
+        self._init_weight(self.feature_extractor)
+
+    @staticmethod
+    def _init_weight(m):
+        if type(m) == nn.Linear:
+            torch.nn.init.xavier_uniform_(m.weight)
+
+    def forward(self, emb, edge_index):
+        col, row = edge_index
+        f1, f2 = emb[col], emb[row]
+        attn_logits = self.cos(self.feature_extractor(f1), self.feature_extractor(f2))
+        return attn_logits
+
+
+class GCNConv_dgl_attn(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(GCNConv_dgl_attn, self).__init__()
+        self.linear = nn.Linear(input_size, output_size)
+
+    def forward(self, x, g):
+        g.ndata['h'] = self.linear(x)
+        g.update_all(fn.u_mul_e('h', 'w', 'm'), fn.sum(msg='m', out='h'))
+        return g.ndata['h']
+
+class GPR_sparse(nn.Module):
+    def __init__(self, hidden_channels, num_layers, dropout, dropout_adj):
+        super(GPR_sparse, self).__init__()
+
+        self.layers = nn.ModuleList([GCNConv_dgl_attn(hidden_channels, hidden_channels) for _ in range(num_layers)])
+        # GPR temprature initialize
+        alpha = 0.1
+        temp = alpha * (1 - alpha) ** np.arange(num_layers + 1)
+        temp[-1] = (1 - alpha) ** num_layers
+        self.temp = nn.Parameter(torch.from_numpy(temp))
+
+        self.dropout = dropout
+        self.dropout_adj_p = dropout_adj
+
+    def forward(self, x, g=None, edge_attn=False):
+        # if edge_attn:
+        #     g.edata['w'] = g.edata['w'] * g.edata['attn']
+        # g.edata['w'] = F.dropout(g.edata['w'], p=self.dropout_adj_p, training=self.training)
+        hidden = x * self.temp[0]
+        for i, conv in enumerate(self.layers):
+            x = conv(x, g)
+            x = F.relu(x)
+            x = F.dropout(x, p=self.dropout, training=self.training)
+            hidden += x * self.temp[i + 1]
+        return hidden
