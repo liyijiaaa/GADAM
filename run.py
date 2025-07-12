@@ -178,13 +178,13 @@ def gen_dgl_graph(index1, index2, edge_w=None, ndata1=None, ndata2=None,ndata3=N
  #全局修改，更新图结构
 def update_graph(graph, h):
     # 得到新的隐藏节点的边
-    new_edges = top_k_graph_based_on_edge_attn(h, k=20, device=args.gpu)
+    new_edges = top_k_graph_based_on_edge_attn(h, k=15, device=args.gpu)
 
     # 计算homey矩阵——绝对值
     edge_attn = torch.abs(gen_edge_attn(h, graph.edges()))
 
     # 过滤边
-    threshold = np.percentile(edge_attn.cpu().numpy(), 17)
+    threshold = np.percentile(edge_attn.cpu().numpy(), 20)
     filtered_edge = (graph.edges()[0][edge_attn > threshold], graph.edges()[1][edge_attn > threshold])
     new_g = gen_dgl_graph(torch.cat((filtered_edge[0], new_edges[0])),
                           torch.cat((filtered_edge[1], new_edges[1])),
@@ -194,16 +194,16 @@ def update_graph(graph, h):
 
     new_g = dgl.to_simple(new_g)
 
-    # 关键修改：将 DGL SparseMatrix 转换为 PyTorch 稀疏张量
-    adj_sparse = new_g.adj_external(scipy_fmt='coo')
-    adj_tensor = torch.sparse_coo_tensor(
-        indices=torch.stack([torch.tensor(adj_sparse.row), torch.tensor(adj_sparse.col)]),
-        values=torch.tensor(adj_sparse.data),
-        size=adj_sparse.shape
-    )
+    # 将 DGL SparseMatrix 转换为 PyTorch 稀疏张量
+    # adj_sparse = new_g.adj_external(scipy_fmt='coo')
+    # adj_tensor = torch.sparse_coo_tensor(
+    #     indices=torch.stack([torch.tensor(adj_sparse.row), torch.tensor(adj_sparse.col)]),
+    #     values=torch.tensor(adj_sparse.data),
+    #     size=adj_sparse.shape
+    # )
 
-    Adj = normalize1(adj_tensor, 'sym', 1) #对称
-    new_g = gen_dgl_graph(Adj.indices()[0], Adj.indices()[1], Adj.values(), graph.ndata['feat'].to('cpu'), graph.ndata['pos'].to('cpu'), graph.ndata['label'].to('cpu'))
+    # Adj = normalize1(adj_tensor, 'sym', 1) #对称
+    # new_g = gen_dgl_graph(Adj.indices()[0], Adj.indices()[1], Adj.values(), graph.ndata['feat'].to('cpu'), graph.ndata['pos'].to('cpu'), graph.ndata['label'].to('cpu'))
     new_g = new_g.to(args.gpu)
     return new_g
 
