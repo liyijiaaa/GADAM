@@ -315,7 +315,8 @@ def main(args):
     graph = memo['graph']
 
     #更新图
-    h = memo['h']
+    #h = memo['h']
+    h=local_net.encoder.encoder2(graph.ndata['feat'])
     graph = update_graph(graph, h)
 
     global_net = GlobalModel(graph, 
