@@ -323,7 +323,7 @@ def main(args):
     #h=local_net.encoder.encoder2(graph.ndata['feat'])
 
     #得到更新以后的图
-    #graph = update_graph(graph, h)
+    graph = update_graph(graph, h)
 
     #全局训练的模型MLP
     global_net = GlobalModel(graph, 
