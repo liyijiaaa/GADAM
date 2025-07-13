@@ -91,6 +91,12 @@ class Encoder2(nn.Module):
         self.meanAgg = MeanAggregator()
         self.g = graph
 
+    def forward(self, h):
+        h = self.encoder(h)
+        mean_h = self.meanAgg(self.g, h)
+
+        return h, mean_h
+
 class LocalModel(nn.Module):
     # LIM module
     def __init__(self, graph, in_dim, out_dim, activation) -> None:
