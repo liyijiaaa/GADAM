@@ -84,6 +84,7 @@ class Encoder(nn.Module):
         return h, mean_h
 
 
+
 class Encoder2(nn.Module):
     def __init__(self, graph, in_dim, out_dim, activation):
         super().__init__()
