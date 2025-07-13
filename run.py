@@ -285,7 +285,7 @@ def main(args):
     seed_everything(args.seed)
 
     graph = my_load_data(args.data)
-    graph = graph.add_self_loop() #test encoder=GCN
+    #graph = graph.add_self_loop() #test encoder=GCN
     feats = graph.ndata['feat']
     labels = graph.ndata['label']
 
