@@ -317,13 +317,13 @@ def main(args):
     t2 = time.time()
     graph = memo['graph']
 
-    #更新图GNN更新
+
     h = memo['h']
 
     #h=local_net.encoder.encoder2(graph.ndata['feat'])
 
     #得到更新以后的图
-    graph = update_graph(graph, h)
+    #graph = update_graph(graph, h)
 
     #全局训练的模型MLP
     global_net = GlobalModel(graph, 
