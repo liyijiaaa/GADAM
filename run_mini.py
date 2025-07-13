@@ -22,11 +22,11 @@ def train_local(net, graph, labels, dataloader, opt, args, init=True):
     def init_xavier(m):
         if type(m) == nn.Linear:
             nn.init.xavier_normal_(m.weight)
-    
+
     if init:
         net.apply(init_xavier)
-    
-    print('train on:', 'cpu' if device<0 else 'gpu {}'.format(device))
+
+    print('train on:', 'cpu' if device < 0 else 'gpu {}'.format(device))
 
     cnt_wait = 0
     best = 999
@@ -38,9 +38,9 @@ def train_local(net, graph, labels, dataloader, opt, args, init=True):
         sum_loss = sum_l1 = sum_l2 = 0
         net.train()
         for in_nodes, out_nodes, blocks in dataloader:
-            block = blocks[0]  
-            block = block.to(device)  
-            input_features = blocks[0].srcdata['feat']		
+            block = blocks[0]
+            block = block.to(device)
+            input_features = blocks[0].srcdata['feat']
             loss, l1, l2, pos = net(block, input_features, out_nodes)
 
             opt.zero_grad()
@@ -53,32 +53,32 @@ def train_local(net, graph, labels, dataloader, opt, args, init=True):
 
         net.eval()
         for _, out_nodes, blocks in dataloader:
-            block = blocks[0]  
-            block = block.to(device)  
-            input_feats = blocks[0].srcdata['feat']	
-            
+            block = blocks[0]
+            block = block.to(device)
+            input_feats = blocks[0].srcdata['feat']
+
             _, _, _, pos = net(block, input_feats, out_nodes)
- 
+
             pos_memo[out_nodes] = pos.cpu()
 
         auc = roc_auc_score(labels.numpy(), -pos_memo.numpy())
 
-        mean_loss = sum_loss/batchs
+        mean_loss = sum_loss / batchs
         if mean_loss < best:
             best = mean_loss
             torch.save(net.state_dict(), 'best_local_model_mini.pkl')
 
         print("Epoch {} | Loss {:.4f} | l1 {:.4f} | l2 {:.4f} | auc {:.4f} "
-               .format(epoch+1, mean_loss , sum_l1/batchs, sum_l2/batchs, auc))
+              .format(epoch + 1, mean_loss, sum_l1 / batchs, sum_l2 / batchs, auc))
 
     net.load_state_dict(torch.load('best_local_model_mini.pkl'))
     h_memo = torch.empty((graph.num_nodes(), args.out_dim))
 
     for _, out_nodes, blocks in dataloader:
-        block = blocks[0]  
-        block = block.to(device)  
-        input_features = blocks[0].srcdata['feat']	
-        
+        block = blocks[0]
+        block = block.to(device)
+        input_features = blocks[0].srcdata['feat']
+
         h, _ = net.encoder(block, input_features)
         h_memo[out_nodes] = h.detach().cpu()
 
@@ -93,7 +93,7 @@ def load_info_from_local(graph, device):
     num_nodes = graph.num_nodes()
     h = memo['h']
     scores = memo['pos']
-    ano_topk = 0.01  
+    ano_topk = 0.01
     nor_topk = 0.3
 
     num_ano = int(num_nodes * ano_topk)
@@ -109,10 +109,10 @@ def load_info_from_local(graph, device):
         nor_idx = nor_idx.cuda()
         ano_idx = ano_idx.cuda()
         center = center.cuda()
-    
+
     graph.ndata['pos'] = scores.cuda()
-    msg_func = lambda edges:{'abs_diff': torch.abs(edges.src['pos'] - edges.dst['pos'])}
-    red_func = lambda nodes:{'pos_diff': torch.mean(nodes.mailbox['abs_diff'], dim=1)}
+    msg_func = lambda edges: {'abs_diff': torch.abs(edges.src['pos'] - edges.dst['pos'])}
+    red_func = lambda nodes: {'pos_diff': torch.mean(nodes.mailbox['abs_diff'], dim=1)}
     graph.update_all(msg_func, red_func)
     pos_diff = graph.ndata['pos_diff']
 
@@ -136,12 +136,12 @@ def train_global(global_net, dataloader, memo, opt, labels, num_nodes, args):
     def init_xavier(m):
         if type(m) == nn.Linear:
             nn.init.xavier_normal_(m.weight)
-    
+
     init = True
     if init:
         global_net.apply(init_xavier)
-    
-    print('train on:', 'cpu' if device<0 else 'gpu {}'.format(device))
+
+    print('train on:', 'cpu' if device < 0 else 'gpu {}'.format(device))
 
     cnt_wait = 0
     best = 999
@@ -153,10 +153,10 @@ def train_global(global_net, dataloader, memo, opt, labels, num_nodes, args):
         sum_loss = 0
         global_net.train()
         for _, out_nodes, blocks in dataloader:
-            block = blocks[0] 
-            block = block.to(device)  
-            input_feats = blocks[0].srcdata['feat']	
-            
+            block = blocks[0]
+            block = block.to(device)
+            input_feats = blocks[0].srcdata['feat']
+
             loss, scores = global_net(block, input_feats, out_nodes, epoch)
             opt.zero_grad()
             loss.backward()
@@ -167,14 +167,14 @@ def train_global(global_net, dataloader, memo, opt, labels, num_nodes, args):
         # eval
         global_net.eval()
         for _, out_nodes, blocks in dataloader:
-            block = blocks[0]  
-            block = block.to(device)  
-            input_feats = blocks[0].srcdata['feat']	
-            
+            block = blocks[0]
+            block = block.to(device)
+            input_feats = blocks[0].srcdata['feat']
+
             _, scores = global_net(block, input_feats, out_nodes, epoch)
             scores_memo[out_nodes] = scores.detach().cpu()
-        
-        mix_score = (pos.cpu() + scores_memo) / 2 
+
+        mix_score = (pos.cpu() + scores_memo) / 2
 
         mix_auc = roc_auc_score(labels.cpu().numpy(), -mix_score)
         auc = roc_auc_score(labels.cpu().numpy(), -scores_memo)
@@ -185,12 +185,12 @@ def train_global(global_net, dataloader, memo, opt, labels, num_nodes, args):
             best = mean_loss
             torch.save(global_net.state_dict(), 'best_global_model_mini.pkl')
 
-        print("Epoch {} | Loss {:.4f} | mix-auc {:.4f}".format(epoch+1, sum_loss/batchs, mix_auc))
+        print("Epoch {} | Loss {:.4f} | mix-auc {:.4f}".format(epoch + 1, sum_loss / batchs, mix_auc))
 
 
 def main(args):
     seed_everything(args.seed)
-    
+
     graph = my_load_data(args.data)
     feats = graph.ndata['feat']
     labels = graph.ndata['label']
@@ -198,53 +198,52 @@ def main(args):
 
     if args.gpu >= 0:
         graph = graph.to(args.gpu)
-    
+
     batch_size = args.batch_size
     node_idx = torch.arange(graph.number_of_nodes(), device=args.gpu)
 
     sampler = dgl.dataloading.MultiLayerFullNeighborSampler(1)
     dataloader = dgl.dataloading.DataLoader(
-        graph, 
+        graph,
         node_idx,
         sampler,
-        batch_size=batch_size, 
-        shuffle=True, 
+        batch_size=batch_size,
+        shuffle=True,
         drop_last=False)
 
     in_feats = feats.shape[1]
 
-    local_net = LocalModel(in_feats, args.out_dim, nn.PReLU(),)
+    local_net = LocalModel(in_feats, args.out_dim, nn.PReLU(), )
 
-    local_opt = torch.optim.Adam(local_net.parameters(), 
-                                 lr=args.local_lr, 
+    local_opt = torch.optim.Adam(local_net.parameters(),
+                                 lr=args.local_lr,
                                  weight_decay=args.weight_decay)
 
     # train_local(local_net, graph, labels, dataloader, local_opt, args)
 
     memo, nor_idx, ano_idx, center, pos_diff = load_info_from_local(graph, args.gpu)
 
-
     global_train_idx = torch.cat((nor_idx, ano_idx))
     global_sampler = dgl.dataloading.MultiLayerFullNeighborSampler(1)
     global_dataloader = dgl.dataloading.DataLoader(
-        graph, 
+        graph,
         global_train_idx,
         global_sampler,
-        batch_size=batch_size, 
-        shuffle=True, 
-        drop_last=False) 
+        batch_size=batch_size,
+        shuffle=True,
+        drop_last=False)
 
-    global_net = GlobalModel(in_feats, 
-                             args.out_dim, 
-                             nn.PReLU(), 
-                             nor_idx, 
-                             ano_idx, 
+    global_net = GlobalModel(in_feats,
+                             args.out_dim,
+                             nn.PReLU(),
+                             nor_idx,
+                             ano_idx,
                              center,
                              labels,
                              pos_diff)
-    opt = torch.optim.Adam(global_net.parameters(), 
-                                 lr=args.global_lr, 
-                                 weight_decay=args.weight_decay)
+    opt = torch.optim.Adam(global_net.parameters(),
+                           lr=args.global_lr,
+                           weight_decay=args.weight_decay)
 
     train_global(global_net, global_dataloader, memo, opt, labels, num_nodes, args)
 

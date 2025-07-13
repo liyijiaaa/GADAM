@@ -172,7 +172,7 @@ def main(args):
     seed_everything(args.seed)
 
     graph = my_load_data(args.data)
-    graph = graph.add_self_loop() #test encoder=GCN
+    # graph = graph.add_self_loop() test encoder=GCN
     feats = graph.ndata['feat']
 
     if args.gpu >= 0:
@@ -249,4 +249,3 @@ if __name__ == '__main__':
     print(args)
     main(args)
     # multi_run(args)
-
