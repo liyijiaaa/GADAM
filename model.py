@@ -143,6 +143,7 @@ class GlobalModel(nn.Module):
         self.encoder = Encoder(graph, in_dim, out_dim, activation)
         self.pre_attn = self.pre_attention()
 
+
     def pre_attention(self):
         # calculate pre-attn
         msg_func = lambda edges: {'abs_diff': torch.abs(edges.src['pos'] - edges.dst['pos'])}
