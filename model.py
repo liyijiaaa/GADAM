@@ -74,6 +74,7 @@ class Discriminator(nn.Module):
         return torch.sum(features * centers, dim=1)
 
 
+
 class Encoder(nn.Module):
     def __init__(self, graph, in_dim,  out_dim, activation):
         super().__init__()
