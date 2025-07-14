@@ -300,6 +300,10 @@ def main(args):
     in_feats = feats.shape[1]
 
     #在这里修改
+    device = args.gpu
+    if device >= 0:
+        torch.cuda.set_device(device)
+        feats = feats.cuda()
     graph = update_graph(graph, feats)
     #初始化局部分数网络模型
     local_net = LocalModel(graph,
