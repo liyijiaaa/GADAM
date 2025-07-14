@@ -285,13 +285,17 @@ def main(args):
     seed_everything(args.seed)
 
     graph = my_load_data(args.data)
-    graph = graph.add_self_loop() #test encoder=GCN
+    #graph = graph.add_self_loop() #test encoder=GCN
     feats = graph.ndata['feat']
     labels = graph.ndata['label']
 
     #修改,添加了一个正太池和异常池
     memorybank_nor = []
     memorybank_abnor=[]
+
+
+    #在这里修改
+    graph = update_graph(graph, feats)
 
     if args.gpu >= 0:
         graph = graph.to(args.gpu)
@@ -323,7 +327,7 @@ def main(args):
     #h=local_net.encoder.encoder2(graph.ndata['feat'])
 
     #得到更新以后的图
-    graph = update_graph(graph, h)
+   # graph = update_graph(graph, h)
 
     #全局训练的模型MLP
     global_net = GlobalModel(graph, 
