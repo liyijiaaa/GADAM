@@ -161,13 +161,13 @@ def gen_edge_attn(emb, edge_index):
         attn_logits = cos(f1, f2)
         return attn_logits
 
-def gen_dgl_graph(index1, index2, edge_w=None, ndata1=None, ndata2=None,ndata3=None):
+def gen_dgl_graph(index1, index2, edge_w=None, ndata1=None,ndata3=None):
     g = dgl.graph((index1, index2))
     if ndata1 is not None:
         g.ndata['feat'] = ndata1
 
-    if ndata2 is not None:
-        g.ndata['pos'] = ndata2
+    # if ndata2 is not None:
+    #     g.ndata['pos'] = ndata2
 
     if ndata3 is not None:
         g.ndata['label'] = ndata3
@@ -190,7 +190,7 @@ def update_graph(graph, h):
     new_g = gen_dgl_graph(torch.cat((filtered_edge[0], new_edges[0])),
                           torch.cat((filtered_edge[1], new_edges[1])),
                           ndata1=graph.ndata['feat'],
-                          ndata2 = graph.ndata['pos'],
+                          #ndata2 = graph.ndata['pos'],
                           ndata3 = graph.ndata['label']).to('cpu')
 
 
