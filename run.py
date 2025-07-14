@@ -205,7 +205,7 @@ def update_graph(graph, h):
     )
 
     Adj = normalize1(adj_tensor, 'sym', 1) #对称
-    new_g = gen_dgl_graph(Adj.indices()[0], Adj.indices()[1], Adj.values(), graph.ndata['feat'].to('cpu'), graph.ndata['pos'].to('cpu'), graph.ndata['label'].to('cpu'))
+    new_g = gen_dgl_graph(Adj.indices()[0], Adj.indices()[1], Adj.values(), graph.ndata['feat'].to('cpu'), graph.ndata['label'].to('cpu'))
     new_g = new_g.to(args.gpu)
     return new_g
 
