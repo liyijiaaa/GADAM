@@ -78,8 +78,8 @@ class Discriminator(nn.Module):
 class Encoder(nn.Module):
     def __init__(self, graph, in_dim,  out_dim, activation):
         super().__init__()
-        #self.encoder = MLP(in_dim, out_dim, activation)
-        self.encoder = GCN(graph, in_dim, out_dim, activation, dropout=0.)
+        self.encoder = MLP(in_dim, out_dim, activation)
+        #self.encoder = GCN(graph, in_dim, out_dim, activation, dropout=0.)
         self.meanAgg = MeanAggregator()
         self.g = graph
         

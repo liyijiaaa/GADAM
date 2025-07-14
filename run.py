@@ -186,7 +186,7 @@ def update_graph(graph, h):
 
     # 过滤边
     threshold = np.percentile(edge_attn.detach().cpu().numpy(), 15)
-    filtered_edge = (graph.edges()[0][edge_attn > threshold], graph.edges()[1][edge_attn > threshold])
+    filtered_edge = (graph.edges()[0][edge_attn > 0.05], graph.edges()[1][edge_attn > 0.05])
     new_g = gen_dgl_graph(torch.cat((filtered_edge[0], new_edges[0])),
                           torch.cat((filtered_edge[1], new_edges[1])),
                           ndata1=graph.ndata['feat'],
@@ -285,7 +285,7 @@ def main(args):
     seed_everything(args.seed)
 
     graph = my_load_data(args.data)
-    graph = graph.add_self_loop() #test encoder=GCN
+    #graph = graph.add_self_loop() #test encoder=GCN
     feats = graph.ndata['feat']
     labels = graph.ndata['label']
 
