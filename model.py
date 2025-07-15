@@ -162,7 +162,7 @@ class GlobalModel(nn.Module):
     def forward(self, feats, epoch,ada_neighbor_nodes):
         #h, mean_h = self.encoder(feats)
         h, _ = self.encoder(feats)
-        mean_h = h[ada_neighbor_nodes]
+        mean_h = torch.mean(h[ada_neighbor_nodes], dim=1)  # 转换为 [n_nodes, feat_dim]
 
         post_attn = self.post_attention(h, mean_h)
         beta = math.pow(self.beta, epoch)
