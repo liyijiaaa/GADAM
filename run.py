@@ -180,7 +180,7 @@ def gen_dgl_graph(index1, index2, edge_w=None, ndata1=None, ndata2=None, ndata3=
  #全局修改，更新图结构
 def update_graph(graph, h, pos):
     # 得到新的隐藏节点的边
-    #new_edges = top_k_graph_based_on_edge_attn(h, k=15, device=args.gpu)
+    new_edges = top_k_graph_based_on_edge_attn(h, k=10, device=args.gpu)
     # 计算homey矩阵——绝对值
     edge_attn = torch.abs(gen_edge_attn(pos, graph.edges()))
 
@@ -188,21 +188,11 @@ def update_graph(graph, h, pos):
     # 过滤边
     threshold = np.percentile(edge_attn.detach().cpu().numpy(), 15)
     filtered_edge = (graph.edges()[0][edge_attn < threshold], graph.edges()[1][edge_attn < threshold])
-    # new_g = gen_dgl_graph(torch.cat((filtered_edge[0], new_edges[0])),
-    #                       torch.cat((filtered_edge[1], new_edges[1])),
-    #                       ndata1=graph.ndata['feat'],
-    #                       ndata2 = graph.ndata['pos'],
-    #                       ndata3 = graph.ndata['label']).to('cpu')
-    # 获取过滤后的节点索引
-    filtered_nodes = torch.unique(torch.cat(filtered_edge))
-    # 确保节点特征与节点数量一致
-    filtered_feats = graph.ndata['feat'][filtered_nodes]
-    filtered_pos = pos[filtered_nodes]
-    filtered_labels = graph.ndata['label'][filtered_nodes]
-    new_g = gen_dgl_graph(filtered_edge[0], filtered_edge[1],
-                          ndata1=filtered_feats,
-                          ndata2=filtered_pos,
-                          ndata3=filtered_labels).to('cpu')
+    new_g = gen_dgl_graph(torch.cat((filtered_edge[0], new_edges[0])),
+                          torch.cat((filtered_edge[1], new_edges[1])),
+                          ndata1=graph.ndata['feat'],
+                          ndata2 = graph.ndata['pos'],
+                          ndata3 = graph.ndata['label']).to('cpu')
 
     new_g = dgl.to_simple(new_g)
 
