@@ -159,7 +159,7 @@ class GlobalModel(nn.Module):
         h = nei * mean_h + (1 - nei) * h
         return h
 
-    def forward(self, feats, epoch,ada_neighbor_nodes):
+    def forward(self, feats, epoch, ada_neighbor_nodes):
         #h, mean_h = self.encoder(feats)
         h, _ = self.encoder(feats)
         mean_h = torch.mean(h[ada_neighbor_nodes], dim=1)  # 转换为 [n_nodes, feat_dim]
@@ -169,7 +169,7 @@ class GlobalModel(nn.Module):
         if beta < 0.1:
             beta = 0.
         #attn = beta * self.pre_attn + (1 - beta) * post_attn
-        attn=post_attn
+        attn = post_attn
         h = self.msg_pass(h, mean_h, attn)
 
         scores = self.discriminator(h, self.center)

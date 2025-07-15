@@ -184,9 +184,9 @@ def train_global(global_net, opt, graph, args):
 
     # 自适应邻居采用修改开始点——初始化采样概率
     # 移除自环
-    # g = dgl.remove_self_loop(g)
+    graph = dgl.remove_self_loop(graph)
     # 添加自环
-    # g = dgl.add_self_loop(g)
+    graph = dgl.add_self_loop(graph)
     # 邻接矩阵处理
     adj_sp = graph.adj_external(scipy_fmt='coo') # 正确用法
 
@@ -229,7 +229,7 @@ def train_global(global_net, opt, graph, args):
         opt.zero_grad()
         #自适应邻居采样修改——自适应采样
         sampled_result = adaptive_sampler(num_nodes, ppr_adj, hop1_adj, hop2_adj, knn_adj,
-                                          p=p, total_sample_size=16)
+                                          p=p, total_sample_size=15)
         ada_neighbor_nodes = torch.stack(sampled_result).to(device).detach()
 
         # 模型前向传播
@@ -242,7 +242,7 @@ def train_global(global_net, opt, graph, args):
 
             # 基于奖励更新采样权重
             updated_param = np.exp((p_min / 2.0) * (r + 0.01 / p) * 100 * np.sqrt(
-                np.log(16 / 0.01) / (sampling_ways * update_internal)))
+                np.log(15 / 0.01) / (sampling_ways * update_internal)))
             sampling_weight = sampling_weight * updated_param
             p = (1 - 4 * p_min) * sampling_weight / sum(sampling_weight) + p_min
             update_day = epoch
