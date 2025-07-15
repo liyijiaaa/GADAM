@@ -152,12 +152,12 @@ def load_info_from_local(local_net,nor_idx,abnor_idx,device):
 
     return memo, nor_idx, abnor_idx, center
 
-def gen_edge_attn(emb, edge_index):
+def gen_edge_attn(pos, edge_index):
         cos = nn.CosineSimilarity(dim=1)
         # 源节点和目标节点的索引
         col, row = edge_index
         #得到两个特征
-        f1, f2 = emb[col], emb[row]
+        f1, f2 = pos[col], pos[row]
         attn_logits = cos(f1, f2)
         return attn_logits
 
@@ -177,11 +177,11 @@ def gen_dgl_graph(index1, index2, edge_w=None, ndata1=None, ndata2=None, ndata3=
     return g
 
  #全局修改，更新图结构
-def update_graph(graph, h):
+def update_graph(graph, h, pos):
     # 得到新的隐藏节点的边
     new_edges = top_k_graph_based_on_edge_attn(h, k=15, device=args.gpu)
     # 计算homey矩阵——绝对值
-    edge_attn = torch.abs(gen_edge_attn(h, graph.edges()))
+    edge_attn = torch.abs(gen_edge_attn(pos, graph.edges()))
 
 
     # 过滤边
@@ -204,7 +204,7 @@ def update_graph(graph, h):
         size=adj_sparse.shape
     )
 
-    Adj = normalize1(adj_tensor, 'sym', 0) #对称
+    Adj = normalize1(adj_tensor, 'sym', 1) #对称
     new_g = gen_dgl_graph(Adj.indices()[0], Adj.indices()[1], Adj.values(), graph.ndata['feat'].to('cpu'), graph.ndata['pos'].to('cpu'), graph.ndata['label'].to('cpu'))
     new_g = new_g.to(args.gpu)
     return new_g
@@ -324,7 +324,8 @@ def main(args):
     h = memo['h']
 
     #得到更新以后的图
-    graph = update_graph(graph, h)
+    pos = graph.ndata['pos']
+    graph = update_graph(graph, h, pos)
 
     #全局训练的模型MLP
     global_net = GlobalModel(graph, 
