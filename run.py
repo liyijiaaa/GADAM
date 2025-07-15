@@ -218,7 +218,7 @@ def train_global(global_net, opt, graph, args):
     num_nodes=  graph.num_nodes()
     device = args.gpu
     feats = graph.ndata['feat']
-    pos = graph.ndata['pos']
+    #pos = graph.ndata['pos']
 
     if device >= 0:
         torch.cuda.set_device(device)
