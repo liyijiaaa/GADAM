@@ -7,9 +7,14 @@ from model import *
 from utils import *
 from sklearn.metrics import roc_auc_score, recall_score, average_precision_score
 from pytorch_memlab import LineProfiler, profile
+from sklearn.preprocessing import MinMaxScaler
+
+#自适应采样添加
+from numpy.linalg import inv
+from torch.nn.functional import normalize
 
 
-def train_local(net, graph, feats, opt, args, init=True):
+def train_local(net, graph, feats, opt, args, memorybank_nor, memorybank_abnor, init=True):
     memo = {}
     labels = graph.ndata['label']
     num_nodes = graph.num_nodes()
@@ -34,16 +39,70 @@ def train_local(net, graph, feats, opt, args, init=True):
     best = 999
     dur = []
 
-    for epoch in range(args.local_epochs):
+    # 修改,设置异常分数存储
+    train_ano_score = torch.zeros((args.local_epochs, num_nodes), dtype=torch.float)
+
+    # 修改
+    for epoch in range(args.local_epochs):  # local_epochs:100
+
         net.train()
         if epoch >= 3:
             t0 = time.time()
-
         opt.zero_grad()
         loss, l1, l2 = net(feats)
-
         loss.backward()
         opt.step()
+        # 记录当前epoch的异常分数
+        pos = graph.ndata['pos']
+        train_ano_score[epoch] = -pos.detach().view(-1)
+
+        if epoch > 0:
+            # 动态添加正太池
+            _, train_list_temp = train_ano_score[epoch - 1].topk(
+                int((epoch / args.local_epochs) ** 2 * num_nodes), dim=0,
+                largest=False, sorted=True)
+            train_list_temp = train_list_temp.cpu().numpy()
+            train_list_temp = train_list_temp.tolist()
+            memorybank_nor.append(train_list_temp)
+
+            # 动态添加异常池——数量设置的一样
+            _, train_list_atemp = train_ano_score[epoch - 1].topk(
+                int((epoch / args.local_epochs) ** 2 * num_nodes), dim=0,
+                largest=True, sorted=True)
+            train_list_atemp = train_list_atemp.cpu().numpy()
+            train_list_atemp = train_list_atemp.tolist()
+            memorybank_abnor.append(train_list_atemp)
+
+        if epoch == (args.local_epochs - 1):
+            # 归一化处理
+            train_ano_score = train_ano_score.cpu().detach().numpy()
+            scaler = MinMaxScaler()
+            train_ano_score = scaler.fit_transform(train_ano_score.T).T
+            train_ano_score = torch.DoubleTensor(train_ano_score).cuda()
+
+            # 克隆一份
+            train_ano_scoreclone = train_ano_score.clone()
+
+            # 计算每个节点在多个epoch中正太池的平均异常得分
+            for idx in range(len(memorybank_nor)):
+                train_ano_score[idx, memorybank_nor[idx]] = 0
+            train_ano_score_nonzero = torch.count_nonzero(train_ano_score, dim=0)
+            train_ano_score = torch.sum(train_ano_score, dim=0)
+            train_ano_score = train_ano_score / train_ano_score_nonzero
+            _, train_list = train_ano_score.topk(int(0.30 * num_nodes), dim=0, largest=False, sorted=True)
+
+            train_list = train_list.cpu().numpy()
+            train_list = train_list.tolist()
+            nor_idx = train_list
+
+            # 计算每个节点在多个epoch中异常池的平均异常得分
+            for idx in range(len(memorybank_abnor)):
+                train_ano_scoreclone[idx, memorybank_abnor[idx]] = 0
+            abnormal_non_zero_count = torch.count_nonzero(train_ano_scoreclone, dim=0)
+            train_ano_scoreclone = torch.sum(train_ano_scoreclone, dim=0)
+            train_ano_scoreclone = train_ano_scoreclone / abnormal_non_zero_count
+            _, abnormal_indices = train_ano_scoreclone.topk(int(0.05 * num_nodes), dim=0, largest=True, sorted=True)
+            abnor_idx = abnormal_indices.cpu().numpy().tolist()
 
         if epoch >= 3:
             dur.append(time.time() - t0)
@@ -55,17 +114,19 @@ def train_local(net, graph, feats, opt, args, init=True):
         print("Epoch {} | Time(s) {:.4f} | Loss {:.4f} | l1 {:.4f} | l2 {:.4f}"
               .format(epoch + 1, np.mean(dur), loss.item(), l1.item(), l2.item()))
 
+    # 循环结束后加载最优模型
     memo['graph'] = graph
     net.load_state_dict(torch.load('best_local_model.pkl'))
     h, mean_h = net.encoder(feats)
     h, mean_h = h.detach(), mean_h.detach()
     memo['h'] = h
     memo['mean_h'] = mean_h
-
     torch.save(memo, 'memo.pth')
 
+    return nor_idx, abnor_idx
 
-def load_info_from_local(local_net, device):
+
+def load_info_from_local(local_net, nor_idx, abnor_idx, device):
     if device >= 0:
         torch.cuda.set_device(device)
         local_net = local_net.to(device)
@@ -73,31 +134,23 @@ def load_info_from_local(local_net, device):
     memo = torch.load('memo.pth')
     local_net.load_state_dict(torch.load('best_local_model.pkl'))
     graph = memo['graph']
-    pos = graph.ndata['pos']
-    scores = -pos.detach()
-    ano_topk = 0.05  # k_ano
-    nor_topk = 0.3  # k_nor
-    num_nodes = graph.num_nodes()
-
-    num_ano = int(num_nodes * ano_topk)
-    _, ano_idx = torch.topk(scores, num_ano)
-
-    num_nor = int(num_nodes * nor_topk)
-    _, nor_idx = torch.topk(-scores, num_nor)
-
     feats = graph.ndata['feat']
 
-    h, _ = local_net.encoder(feats)
+    # 将列表转换为张量
+    nor_idx = torch.tensor(nor_idx, dtype=torch.long)
+    abnor_idx = torch.tensor(abnor_idx, dtype=torch.long)
 
+    # 计算正常节点的中心
+    h, _ = local_net.encoder(feats)
     center = h[nor_idx].mean(dim=0).detach()
 
     if device >= 0:
         memo = {k: v.to(device) for k, v in memo.items()}
         nor_idx = nor_idx.cuda()
-        ano_idx = ano_idx.cuda()
+        abnor_idx = abnor_idx.cuda()
         center = center.cuda()
 
-    return memo, nor_idx, ano_idx, center
+    return memo, nor_idx, abnor_idx, center
 
 
 def train_global(global_net, opt, graph, args):
@@ -129,6 +182,44 @@ def train_global(global_net, opt, graph, args):
     best = 999
     dur = []
 
+    # 自适应邻居采用修改开始点——初始化采样概率
+    # 移除自环
+    # g = dgl.remove_self_loop(g)
+    # 添加自环
+    # g = dgl.add_self_loop(g)
+    # 邻接矩阵处理
+    adj_sp = graph.adj(scipy_fmt='coo')  # 获取稀疏邻接矩阵
+    adj_full = torch.FloatTensor(adj_sp.toarray()).to(device)
+    adj_feed = torch.FloatTensor(adj_normalize(adj_sp).toarray()).to(device)
+
+    # 4种采样方式
+    sampling_ways = 4
+
+    normalized_adj = adj_normalize(adj_sp)  # 归一化邻接矩阵
+    column_normalized_adj = column_normalize(adj_sp)  # 列归一化
+    ppr_c = 0.15
+
+    # 幂次邻接矩阵（1-hop, 2-hop）
+    power_adj_list = [normalized_adj]
+    for m in range(2):
+        power_adj_list.append(power_adj_list[0] * power_adj_list[m])
+    ppr_adj = ppr_c * inv((sp.eye(adj_sp.shape[0]) - (1 - ppr_c) * column_normalized_adj).toarray())  # PPR
+    hop1_adj = power_adj_list[0].toarray()
+    hop2_adj = power_adj_list[1].toarray()
+    x = normalize(feats, dim=1).cpu()
+    knn_adj = np.array(torch.matmul(x, x.transpose(1, 0)))
+
+    # 四种采样方式
+    sampling_weight = np.ones(4)
+    # 最小采样概率
+    p_min = 0.05
+    p = (1 - 4 * p_min) * sampling_weight / sum(sampling_weight) + p_min
+
+    warm_up_epoch = 3
+    update_internal = 3
+    update_day = -1
+    torch.autograd.set_detect_anomaly(True)
+
     pred_labels = np.zeros_like(labels)
     for epoch in range(epochs):
         global_net.train()
@@ -136,7 +227,27 @@ def train_global(global_net, opt, graph, args):
             t0 = time.time()
 
         opt.zero_grad()
-        loss, scores = global_net(feats, epoch)
+        #自适应邻居采样修改——自适应采样
+        sampled_result = adaptive_sampler(num_nodes, ppr_adj, hop1_adj, hop2_adj, knn_adj,
+                                          p=p, total_sample_size=15)
+        ada_neighbor_nodes = torch.stack(sampled_result).to(device).detach()
+
+        # 模型前向传播
+        loss, scores = global_net(feats, epoch, ada_neighbor_nodes)
+
+        if epoch >= warm_up_epoch and (epoch - update_day) >= update_internal:
+            # 计算奖励（采样效果评估）
+            r = get_reward(device, p, ppr_adj, hop1_adj, hop2_adj, knn_adj, num_nodes,
+                           ada_neighbor_nodes, cost_mat=scores)
+
+            # 基于奖励更新采样权重
+            updated_param = np.exp((p_min / 2.0) * (r + 0.01 / p) * 100 * np.sqrt(
+                np.log(15 / 0.01) / (sampling_ways * update_internal)))
+            sampling_weight = sampling_weight * updated_param
+            p = (1 - 4 * p_min) * sampling_weight / sum(sampling_weight) + p_min
+            update_day = epoch
+
+
         loss.backward()
         opt.step()
 
@@ -172,27 +283,34 @@ def main(args):
     seed_everything(args.seed)
 
     graph = my_load_data(args.data)
-    graph = graph.add_self_loop() #test encoder=GCN
+    # graph = graph.add_self_loop() test encoder=GCN
     feats = graph.ndata['feat']
+
+    # 修改,添加了一个正太池和异常池
+    memorybank_nor = []
+    memorybank_abnor = []
 
     if args.gpu >= 0:
         graph = graph.to(args.gpu)
 
     in_feats = feats.shape[1]
 
+    # 初始化局部分数网络模型
     local_net = LocalModel(graph,
                            in_feats,
                            args.out_dim,
                            nn.PReLU(), )
-
+    # 初始化局部分数优化器
     local_opt = torch.optim.Adam(local_net.parameters(),
                                  lr=args.local_lr,
                                  weight_decay=args.weight_decay)
     t1 = time.time()
-    train_local(local_net, graph, feats, local_opt, args)
 
-    # load information from LIM module
-    memo, nor_idx, ano_idx, center = load_info_from_local(local_net, args.gpu)
+    # 修改,将正态池异常池传递给训练函数
+    nor_idx, abnor_idx = train_local(local_net, graph, feats, local_opt, args, memorybank_nor, memorybank_abnor)
+
+    memo, nor_idx, ano_idx, center = load_info_from_local(local_net, nor_idx, abnor_idx, args.gpu)
+
     t2 = time.time()
     graph = memo['graph']
     global_net = GlobalModel(graph,

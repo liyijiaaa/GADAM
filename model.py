@@ -76,32 +76,19 @@ class Encoder(nn.Module):
         self.meanAgg = MeanAggregator()
         self.g = graph
 
-
     def forward(self, h):
         h = self.encoder(h)
-        mean_h = self.meanAgg(self.g, h)
+        #mean_h = self.meanAgg(self.g, h)  # 邻居聚合得到子图表示
 
-        return h, mean_h
+        #return h, mean_h
+        return h
 
-class Encoder2(nn.Module):
-    def __init__(self, graph, in_dim, out_dim, activation):
-        super().__init__()
-        #self.encoder = MLP(in_dim, out_dim, activation)
-        self.encoder = GCN(graph, in_dim, out_dim, activation, dropout=0.)
-        self.meanAgg = MeanAggregator()
-        self.g = graph
-
-    def forward(self, h):
-        h = self.encoder(h)
-        mean_h = self.meanAgg(self.g, h)
-
-        return h, mean_h
 
 class LocalModel(nn.Module):
     # LIM module
     def __init__(self, graph, in_dim, out_dim, activation) -> None:
         super().__init__()
-        self.encoder = Encoder2(graph, in_dim, out_dim, activation)
+        self.encoder = Encoder(graph, in_dim, out_dim, activation)
         self.g = graph
         self.discriminator = Discriminator(out_dim)
         self.loss = nn.BCEWithLogitsLoss()
@@ -172,15 +159,17 @@ class GlobalModel(nn.Module):
         h = nei * mean_h + (1 - nei) * h
         return h
 
-    def forward(self, feats, epoch):
-        h, mean_h = self.encoder(feats)
+    def forward(self, feats, epoch,ada_neighbor_nodes):
+        #h, mean_h = self.encoder(feats)
+        h = self.encoder(feats)
+        mean_h = h[ada_neighbor_nodes]
 
         post_attn = self.post_attention(h, mean_h)
         beta = math.pow(self.beta, epoch)
         if beta < 0.1:
             beta = 0.
-        attn = beta * self.pre_attn + (1 - beta) * post_attn
-
+        #attn = beta * self.pre_attn + (1 - beta) * post_attn
+        attn=post_attn
         h = self.msg_pass(h, mean_h, attn)
 
         scores = self.discriminator(h, self.center)
