@@ -193,11 +193,16 @@ def update_graph(graph, h, pos):
     #                       ndata1=graph.ndata['feat'],
     #                       ndata2 = graph.ndata['pos'],
     #                       ndata3 = graph.ndata['label']).to('cpu')
-
+    # 获取过滤后的节点索引
+    filtered_nodes = torch.unique(torch.cat(filtered_edge))
+    # 确保节点特征与节点数量一致
+    filtered_feats = graph.ndata['feat'][filtered_nodes]
+    filtered_pos = pos[filtered_nodes]
+    filtered_labels = graph.ndata['label'][filtered_nodes]
     new_g = gen_dgl_graph(filtered_edge[0], filtered_edge[1],
-                          ndata1=graph.ndata['feat'],
-                          ndata2=graph.ndata['pos'],
-                          ndata3=graph.ndata['label']).to('cpu')
+                          ndata1=filtered_feats,
+                          ndata2=filtered_pos,
+                          ndata3=filtered_labels).to('cpu')
 
     new_g = dgl.to_simple(new_g)
 
