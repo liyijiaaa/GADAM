@@ -214,6 +214,7 @@ def train_global(global_net, opt, graph, args):
     p = (1 - 4 * p_min) * sampling_weight / sum(sampling_weight) + p_min
 
     warm_up_epoch = 3
+    #奖励函数的计算次数
     update_internal = 3
     update_day = -1
     torch.autograd.set_detect_anomaly(True)
@@ -228,7 +229,7 @@ def train_global(global_net, opt, graph, args):
         opt.zero_grad()
         #自适应邻居采样修改——自适应采样
         sampled_result = adaptive_sampler(num_nodes, ppr_adj, hop1_adj, hop2_adj, knn_adj,
-                                          p=p, total_sample_size=20)
+                                          p=p, total_sample_size=10)
         ada_neighbor_nodes = torch.stack(sampled_result).to(device).detach()
 
         # 模型前向传播
