@@ -188,7 +188,7 @@ def train_global(global_net, opt, graph, args):
     # 添加自环
     # g = dgl.add_self_loop(g)
     # 邻接矩阵处理
-    adj_sp = graph.adj()  # 获取稀疏邻接矩阵
+    adj_sp = graph.adj_external(scipy_fmt='coo') # 正确用法
 
     # 4种采样方式
     sampling_ways = 4
