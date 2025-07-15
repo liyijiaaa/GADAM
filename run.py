@@ -219,6 +219,7 @@ def train_global(global_net, opt, graph, args):
     torch.autograd.set_detect_anomaly(True)
 
     pred_labels = np.zeros_like(labels)
+
     for epoch in range(epochs):
         global_net.train()
         if epoch >= 3:
@@ -227,7 +228,7 @@ def train_global(global_net, opt, graph, args):
         opt.zero_grad()
         #自适应邻居采样修改——自适应采样
         sampled_result = adaptive_sampler(num_nodes, ppr_adj, hop1_adj, hop2_adj, knn_adj,
-                                          p=p, total_sample_size=15)
+                                          p=p, total_sample_size=20)
         ada_neighbor_nodes = torch.stack(sampled_result).to(device).detach()
 
         # 模型前向传播
