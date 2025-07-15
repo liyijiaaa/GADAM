@@ -190,9 +190,6 @@ def train_global(global_net, opt, graph, args):
     # 邻接矩阵处理
     adj_sp = graph.adj()  # 获取稀疏邻接矩阵
 
-    adj_full = torch.FloatTensor(adj_sp.toarray()).to(device)
-    adj_feed = torch.FloatTensor(adj_normalize(adj_sp).toarray()).to(device)
-
     # 4种采样方式
     sampling_ways = 4
 
