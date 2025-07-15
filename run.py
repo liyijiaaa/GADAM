@@ -184,9 +184,9 @@ def train_global(global_net, opt, graph, args):
 
     # 自适应邻居采用修改开始点——初始化采样概率
     # 移除自环
-    graph = dgl.remove_self_loop(graph)
-    # 添加自环
-    graph = dgl.add_self_loop(graph)
+    # graph = dgl.remove_self_loop(graph)
+    # # 添加自环
+    # graph = dgl.add_self_loop(graph)
     # 邻接矩阵处理
     adj_sp = graph.adj_external(scipy_fmt='coo') # 正确用法
 
@@ -215,7 +215,7 @@ def train_global(global_net, opt, graph, args):
 
     warm_up_epoch = 3
     #奖励函数的计算次数
-    update_internal = 3
+    update_internal = 5
     update_day = -1
     torch.autograd.set_detect_anomaly(True)
 
