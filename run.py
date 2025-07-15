@@ -158,7 +158,8 @@ def gen_edge_attn(pos, edge_index):
         col, row = edge_index
         #得到两个特征
         f1, f2 = pos[col], pos[row]
-        attn_logits = cos(f1, f2)
+        #attn_logits = cos(f1, f2)
+        attn_logits = torch.abs(f1 - f2) #局部异常分数差异
         return attn_logits
 
 def gen_dgl_graph(index1, index2, edge_w=None, ndata1=None, ndata2=None, ndata3=None):
@@ -186,7 +187,7 @@ def update_graph(graph, h, pos):
 
     # 过滤边
     threshold = np.percentile(edge_attn.detach().cpu().numpy(), 15)
-    filtered_edge = (graph.edges()[0][edge_attn > threshold], graph.edges()[1][edge_attn > threshold])
+    filtered_edge = (graph.edges()[0][edge_attn < threshold], graph.edges()[1][edge_attn < threshold])
     new_g = gen_dgl_graph(torch.cat((filtered_edge[0], new_edges[0])),
                           torch.cat((filtered_edge[1], new_edges[1])),
                           ndata1=graph.ndata['feat'],
