@@ -78,10 +78,10 @@ class Encoder(nn.Module):
 
     def forward(self, h):
         h = self.encoder(h)
-        #mean_h = self.meanAgg(self.g, h)  # 邻居聚合得到子图表示
+        mean_h = self.meanAgg(self.g, h)  # 邻居聚合得到子图表示
 
-        #return h, mean_h
-        return h
+        return h, mean_h
+        #return h
 
 
 class LocalModel(nn.Module):
@@ -161,7 +161,7 @@ class GlobalModel(nn.Module):
 
     def forward(self, feats, epoch,ada_neighbor_nodes):
         #h, mean_h = self.encoder(feats)
-        h = self.encoder(feats)
+        h, _ = self.encoder(feats)
         mean_h = h[ada_neighbor_nodes]
 
         post_attn = self.post_attention(h, mean_h)
