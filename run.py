@@ -213,7 +213,7 @@ def train_global(global_net, opt, graph, args):
     p_min = 0.05
     p = (1 - 4 * p_min) * sampling_weight / sum(sampling_weight) + p_min
 
-    warm_up_epoch = 5
+    warm_up_epoch = 3
     #奖励函数的计算次数
     update_internal = 5
     update_day = -1
@@ -238,7 +238,7 @@ def train_global(global_net, opt, graph, args):
         if epoch >= warm_up_epoch and (epoch - update_day) >= update_internal:
             # 计算奖励（采样效果评估）
             r = get_reward(device, p, ppr_adj, hop1_adj, hop2_adj, knn_adj, num_nodes,
-                           ada_neighbor_nodes, cost_mat=scores)
+                           ada_neighbor_nodes, cost_mat=(scores + pos))
 
             # 基于奖励更新采样权重_两个0.01是可变参数
             updated_param = np.exp((p_min / 2.0) * (r + 0.01 / p) * 100 * np.sqrt(
