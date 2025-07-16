@@ -210,7 +210,7 @@ def train_global(global_net, opt, graph, args):
     # 四种采样方式
     sampling_weight = np.ones(4)
     # 最小采样概率
-    p_min = 0.05
+    p_min = 0.06
     p = (1 - 4 * p_min) * sampling_weight / sum(sampling_weight) + p_min
 
     warm_up_epoch = 3
