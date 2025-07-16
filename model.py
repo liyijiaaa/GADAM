@@ -126,27 +126,27 @@ class GlobalModel(nn.Module):
         self.ano_idx = ano_idx
         self.center = center  # high confidence normal center
         self.encoder = Encoder(graph, in_dim, out_dim, activation)
-        #self.pre_attn = self.pre_attention()
+        self.pre_attn = self.pre_attention()
 
-    # def pre_attention(self):
-    #     # calculate pre-attn
-    #     msg_func = lambda edges: {'abs_diff': torch.abs(edges.src['pos'] - edges.dst['pos'])}
-    #     red_func = lambda nodes: {'pos_diff': torch.mean(nodes.mailbox['abs_diff'], dim=1)}
-    #     self.g.update_all(msg_func, red_func)
-    #
-    #     pos = self.g.ndata['pos']
-    #     pos.requires_grad = False
-    #
-    #     pos_diff = self.g.ndata['pos_diff'].detach()
-    #
-    #     diff_mean = pos_diff[self.nor_idx].mean()
-    #     diff_std = torch.sqrt(pos_diff[self.nor_idx].var())
-    #
-    #     normalized_pos = (pos_diff - diff_mean) / diff_std
-    #
-    #     attn = 1 - torch.sigmoid(normalized_pos)
-    #
-    #     return attn.unsqueeze(1)
+    def pre_attention(self):
+        # calculate pre-attn
+        msg_func = lambda edges: {'abs_diff': torch.abs(edges.src['pos'] - edges.dst['pos'])}
+        red_func = lambda nodes: {'pos_diff': torch.mean(nodes.mailbox['abs_diff'], dim=1)}
+        self.g.update_all(msg_func, red_func)
+
+        pos = self.g.ndata['pos']
+        pos.requires_grad = False
+
+        pos_diff = self.g.ndata['pos_diff'].detach()
+
+        diff_mean = pos_diff[self.nor_idx].mean()
+        diff_std = torch.sqrt(pos_diff[self.nor_idx].var())
+
+        normalized_pos = (pos_diff - diff_mean) / diff_std
+
+        attn = 1 - torch.sigmoid(normalized_pos)
+
+        return attn.unsqueeze(1)
 
     def post_attention(self, h, mean_h):
         # calculate post-attn
@@ -166,8 +166,8 @@ class GlobalModel(nn.Module):
 
         post_attn = self.post_attention(h, mean_h)
         beta = math.pow(self.beta, epoch)
-        # if beta < 0.1:
-        #     beta = 0.
+        if beta < 0.1:
+            beta = 0.
         #attn = beta * self.pre_attn + (1 - beta) * post_attn
         attn = post_attn
         h = self.msg_pass(h, mean_h, attn)

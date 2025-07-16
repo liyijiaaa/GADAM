@@ -312,7 +312,6 @@ def main(args):
 
     memo, nor_idx, ano_idx, center = load_info_from_local(local_net, nor_idx, abnor_idx, args.gpu)
 
-
     t2 = time.time()
     graph = memo['graph']
     global_net = GlobalModel(graph,
