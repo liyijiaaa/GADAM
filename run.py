@@ -249,7 +249,7 @@ def train_global(global_net, opt, graph, args):
             p = (1 - 4 * p_min) * sampling_weight / sum(sampling_weight) + p_min
             update_day = epoch
 
-
+        loss.backward()
         opt.step()
 
         if epoch >= 3:
