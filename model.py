@@ -11,17 +11,17 @@ from utils import idx_sample, row_normalization
 class MLP(nn.Module):
     def __init__(self, in_dim, out_dim, activation) -> None:
         super().__init__()
-        # self.encoder = nn.ModuleList([
-        #     nn.Linear(in_dim, hid_dim),
-        #     nn.Dropout(p=dropout),
-        #     activation,
-        #     nn.Linear(hid_dim, out_dim),
-        #     nn.Dropout(p=dropout)
-        # ])
         self.encoder = nn.ModuleList([
-            nn.Linear(in_dim, out_dim),
+            nn.Linear(in_dim, 256),
+            nn.Dropout(p=0.5),
             activation,
+            nn.Linear(256,out_dim),
+            nn.Dropout(p=0.5)
         ])
+        # self.encoder = nn.ModuleList([
+        #     nn.Linear(in_dim, out_dim),
+        #     activation,
+        # ])
 
     def forward(self, features):
         h = features
