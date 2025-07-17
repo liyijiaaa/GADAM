@@ -12,11 +12,11 @@ class MLP(nn.Module):
     def __init__(self, in_dim, out_dim, activation) -> None:
         super().__init__()
         self.encoder = nn.ModuleList([
-            nn.Linear(in_dim, 256),
-            nn.Dropout(p=0.5),
+            nn.Linear(in_dim, 2*in_dim),
+            nn.Dropout(p=0.1),
             activation,
-            nn.Linear(256,out_dim),
-            nn.Dropout(p=0.5)
+            nn.Linear(2*in_dim,out_dim),
+            nn.Dropout(p=0.1)
         ])
         # self.encoder = nn.ModuleList([
         #     nn.Linear(in_dim, out_dim),
