@@ -228,7 +228,7 @@ def train_global(global_net, opt, graph, args):
         if epoch >= 3:
             t0 = time.time()
 
-        opt.zero_grad()
+
         #自适应邻居采样修改——自适应采样
         sampled_result = adaptive_sampler(num_nodes, ppr_adj, hop1_adj, hop2_adj, knn_adj,
                                           p=p, total_sample_size=25)
@@ -249,6 +249,8 @@ def train_global(global_net, opt, graph, args):
             p = (1 - 4 * p_min) * sampling_weight / sum(sampling_weight) + p_min
             update_day = epoch
 
+
+        opt.zero_grad()
         loss.backward()
         opt.step()
 
