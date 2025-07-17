@@ -233,10 +233,9 @@ def train_global(global_net, opt, graph, args):
         sampled_result = adaptive_sampler(num_nodes, ppr_adj, hop1_adj, hop2_adj, knn_adj,
                                           p=p, total_sample_size=25)
         ada_neighbor_nodes = torch.stack(sampled_result).to(device).detach()
-
+        opt.zero_grad()
         # 模型前向传播
         loss, scores = global_net(feats, epoch, ada_neighbor_nodes)
-
         if epoch >= warm_up_epoch and (epoch - update_day) >= update_internal:
             # 计算奖励（采样效果评估）
             r = get_reward(device, p, ppr_adj, hop1_adj, hop2_adj, knn_adj, num_nodes,
@@ -248,9 +247,6 @@ def train_global(global_net, opt, graph, args):
             sampling_weight = sampling_weight * updated_param
             p = (1 - 4 * p_min) * sampling_weight / sum(sampling_weight) + p_min
             update_day = epoch
-
-
-        opt.zero_grad()
         loss.backward()
         opt.step()
 
