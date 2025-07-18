@@ -184,10 +184,10 @@ def train_global(global_net, opt, graph, args):
     dur = []
 
     # 自适应邻居采用修改开始点——初始化采样概率
-    # 移除自环
-    graph = dgl.remove_self_loop(graph)
-    # # 添加自环
-    graph = dgl.add_self_loop(graph)
+    # # 移除自环
+    # graph = dgl.remove_self_loop(graph)
+    # # # 添加自环
+    # graph = dgl.add_self_loop(graph)
     # 邻接矩阵处理
     adj_sp = graph.adj_external(scipy_fmt='coo') # 正确用法
 
