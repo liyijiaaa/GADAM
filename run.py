@@ -222,7 +222,6 @@ def train_global(global_net, opt, graph, args):
 
     pred_labels = np.zeros_like(labels)
 
-
     for epoch in range(epochs):
         global_net.train()
         if epoch >= 3:
