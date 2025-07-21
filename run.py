@@ -234,11 +234,11 @@ def train_global(global_net, opt, graph, args):
         ada_neighbor_nodes = torch.stack(sampled_result).to(device).detach()
         opt.zero_grad()
         # 模型前向传播
-        loss, scores = global_net(feats, epoch, ada_neighbor_nodes)
+        loss, scores, post_attn = global_net(feats, epoch, ada_neighbor_nodes)
         if epoch >= warm_up_epoch and (epoch - update_day) >= update_internal:
             # 计算奖励（采样效果评估）
             r = get_reward(device, p, ppr_adj, hop1_adj, hop2_adj, knn_adj, num_nodes,
-                           ada_neighbor_nodes, cost_mat=scores)
+                           ada_neighbor_nodes, cost_mat=post_attn)
 
             # 基于奖励更新采样权重_两个0.01是可变参数
             updated_param = np.exp((p_min / 2.0) * (r + 0.01 / p) * 100 * np.sqrt(

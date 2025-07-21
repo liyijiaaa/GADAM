@@ -182,4 +182,4 @@ class GlobalModel(nn.Module):
 
         center_loss = pos_center_loss + neg_center_loss
 
-        return center_loss, scores
+        return center_loss, scores, post_attn
