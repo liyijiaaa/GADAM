@@ -177,7 +177,7 @@ class GlobalModel(nn.Module):
 
         agg_info = torch.zeros(h.shape).to(self.args.gpu)
         mean_h = torch.mean(neighbor_h[pos_idx], dim=1)
-        post_attn = self.post_attention(h, mean_h)
+        post_attn = self.post_attention(h[pos_idx], mean_h)
         agg_info[pos_idx] = self.msg_pass(h[pos_idx], mean_h, post_attn)
 
         agg_info[neg_idx] = h[neg_idx]
