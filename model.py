@@ -115,7 +115,7 @@ class LocalModel(nn.Module):
 
 
 class GlobalModel(nn.Module):
-    def __init__(self, graph, in_dim, out_dim, activation, nor_idx, ano_idx, center):
+    def __init__(self, graph, in_dim, out_dim, activation, nor_idx, ano_idx, center, args):
         super().__init__()
         self.g = graph
         self.discriminator = Discriminator(out_dim)
@@ -125,6 +125,7 @@ class GlobalModel(nn.Module):
         self.nor_idx = nor_idx
         self.ano_idx = ano_idx
         self.center = center  # high confidence normal center
+        self.args = args
         self.encoder = Encoder(graph, in_dim, out_dim, activation)
         self.pre_attn = self.pre_attention()
 
@@ -162,18 +163,34 @@ class GlobalModel(nn.Module):
     def forward(self, feats, epoch, ada_neighbor_nodes):
         #h, mean_h = self.encoder(feats)
         h, _ = self.encoder(feats)
-        mean_h = torch.mean(h[ada_neighbor_nodes], dim=1)  # 转换为 [n_nodes, feat_dim]
+        #mean_h = torch.mean(h[ada_neighbor_nodes], dim=1)
+        neighbor_h = h[ada_neighbor_nodes]
+        #
+        batch_center = torch.mean(h, dim=-1)
+        diff_center = torch.sum(h - batch_center.unsqueeze(-1), dim=-1)
+        sorted_idx = torch.argsort(diff_center, dim=-1, descending=False)
+        bs = sorted_idx.shape[0]
+        ano_num = int(bs * 0.1)
 
+        pos_idx = sorted_idx[:bs - ano_num]
+        neg_idx = sorted_idx[-ano_num:]
+
+        agg_info = torch.zeros(h.shape).to(self.args.gpu)
+        mean_h = torch.mean(neighbor_h[pos_idx], dim=1)
         post_attn = self.post_attention(h, mean_h)
-        beta = math.pow(self.beta, epoch)
-        if beta < 0.1:
-            beta = 0.
+        agg_info[pos_idx] = self.msg_pass(h[pos_idx], mean_h, post_attn)
+
+        agg_info[neg_idx] = h[neg_idx]
+        #post_attn = self.post_attention(h, mean_h)
+        # beta = math.pow(self.beta, epoch)
+        # if beta < 0.1:
+        #     beta = 0.
         #attn = beta * self.pre_attn + (1 - beta) * post_attn
-        attn = post_attn
-        h = self.msg_pass(h, mean_h, attn)
+        # attn = post_attn
+        # h = self.msg_pass(h, mean_h, attn)
 
-        scores = self.discriminator(h, self.center)
-
+        #scores = self.discriminator(h, self.center)
+        scores=self.discriminator(agg_info,self.center)
         pos_center_simi = scores[self.nor_idx]
         neg_center_simi = scores[self.ano_idx]
 
@@ -182,4 +199,4 @@ class GlobalModel(nn.Module):
 
         center_loss = pos_center_loss + neg_center_loss
 
-        return center_loss, scores, post_attn
+        return center_loss, scores
