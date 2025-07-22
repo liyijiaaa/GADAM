@@ -230,7 +230,7 @@ def train_global(global_net, opt, graph, args):
 
         #自适应邻居采样修改——自适应采样
         sampled_result = adaptive_sampler(num_nodes, ppr_adj, hop1_adj, hop2_adj, knn_adj,
-                                          p=p, total_sample_size=25)
+                                          p=p, total_sample_size=100)
         ada_neighbor_nodes = torch.stack(sampled_result).to(device).detach()
         opt.zero_grad()
         # 模型前向传播
@@ -242,7 +242,7 @@ def train_global(global_net, opt, graph, args):
 
             # 基于奖励更新采样权重_两个0.01是可变参数
             updated_param = np.exp((p_min / 2.0) * (r + 0.01 / p) * 100 * np.sqrt(
-                np.log(25 / 0.01) / (sampling_ways * update_internal)))
+                np.log(100 / 0.01) / (sampling_ways * update_internal)))
             sampling_weight = sampling_weight * updated_param
             p = (1 - 4 * p_min) * sampling_weight / sum(sampling_weight) + p_min
             update_day = epoch
@@ -321,7 +321,7 @@ def main(args):
                              args)
     opt = torch.optim.Adam(global_net.parameters(),
                            lr=args.global_lr,
-                           weight_decay=0.0001)  #arg.weight_decay
+                           weight_decay=args.weight_decay)  #arg.weight_decay
     t3 = time.time()
 
     mix_auc, recall_k, ap = train_global(global_net, opt, graph, args)

@@ -163,34 +163,16 @@ class GlobalModel(nn.Module):
     def forward(self, feats, epoch, ada_neighbor_nodes):
         #h, mean_h = self.encoder(feats)
         h, _ = self.encoder(feats)
-        #mean_h = torch.mean(h[ada_neighbor_nodes], dim=1)
-        neighbor_h = h[ada_neighbor_nodes]
-        #
-        batch_center = torch.mean(h, dim=-1)
-        diff_center = torch.sum(h - batch_center.unsqueeze(-1), dim=-1)
-        sorted_idx = torch.argsort(diff_center, dim=-1, descending=False)
-        bs = sorted_idx.shape[0]
-        ano_num = int(bs * 0.1)
-
-        pos_idx = sorted_idx[:bs - ano_num]
-        neg_idx = sorted_idx[-ano_num:]
-
-        agg_info = torch.zeros(h.shape).to(self.args.gpu)
-        mean_h = torch.mean(neighbor_h[pos_idx], dim=1)
-        post_attn = self.post_attention(h[pos_idx], mean_h)
-        agg_info[pos_idx] = self.msg_pass(h[pos_idx], mean_h, post_attn)
-
-        agg_info[neg_idx] = h[neg_idx]
-        #post_attn = self.post_attention(h, mean_h)
+        mean_h = torch.mean(h[ada_neighbor_nodes], dim=1)
+        post_attn = self.post_attention(h, mean_h)
         # beta = math.pow(self.beta, epoch)
         # if beta < 0.1:
         #     beta = 0.
         #attn = beta * self.pre_attn + (1 - beta) * post_attn
-        # attn = post_attn
-        # h = self.msg_pass(h, mean_h, attn)
+        attn = post_attn
+        h = self.msg_pass(h, mean_h, attn)
+        scores = self.discriminator(h, self.center)
 
-        #scores = self.discriminator(h, self.center)
-        scores=self.discriminator(agg_info,self.center)
         pos_center_simi = scores[self.nor_idx]
         neg_center_simi = scores[self.ano_idx]
 
