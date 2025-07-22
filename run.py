@@ -321,7 +321,7 @@ def main(args):
                              args)
     opt = torch.optim.Adam(global_net.parameters(),
                            lr=args.global_lr,
-                           weight_decay=args.weight_decay)
+                           weight_decay=0.0001)  #arg.weight_decay
     t3 = time.time()
 
     mix_auc, recall_k, ap = train_global(global_net, opt, graph, args)
