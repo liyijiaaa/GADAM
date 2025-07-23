@@ -165,6 +165,7 @@ class GlobalModel(nn.Module):
         #h, mean_h = self.encoder(feats)
         h, _ = self.encoder(feats)
         mean_h = torch.mean(h[ada_neighbor_nodes], dim=1)
+
         post_attn = self.post_attention(h, mean_h)
         # beta = math.pow(self.beta, epoch)
         # if beta < 0.1:
