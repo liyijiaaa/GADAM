@@ -216,7 +216,7 @@ def train_global(global_net, opt, graph, args):
 
     warm_up_epoch = 3
     #奖励函数的计算次数
-    update_internal = 5
+    update_internal = 3
     update_day = -1
     torch.autograd.set_detect_anomaly(True)
 
