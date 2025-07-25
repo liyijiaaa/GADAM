@@ -212,12 +212,13 @@ def train_global(global_net, opt, graph, args):
     # 四种采样方式
     sampling_weight = np.ones(4)
     # 最小采样概率
-    p_min = 0.05
+    #p_min = 0.05
+    p_min=0.1
     p = (1 - 4 * p_min) * sampling_weight / sum(sampling_weight) + p_min
 
     warm_up_epoch = 3
     #奖励函数的计算次数
-    update_internal = 1
+    update_internal = 5
     update_day = -1
     torch.autograd.set_detect_anomaly(True)
 
