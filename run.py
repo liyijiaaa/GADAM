@@ -202,6 +202,7 @@ def train_global(global_net, opt, graph, args):
     power_adj_list = [normalized_adj]
     for m in range(2):
         power_adj_list.append(power_adj_list[0] * power_adj_list[m])
+    #随机游走修改
     ppr_adj = ppr_c * inv((sp.eye(adj_sp.shape[0]) - (1 - ppr_c) * column_normalized_adj).toarray())  # PPR
     hop1_adj = power_adj_list[0].toarray()
     hop2_adj = power_adj_list[1].toarray()
@@ -229,8 +230,8 @@ def train_global(global_net, opt, graph, args):
 
         opt.zero_grad()
         #自适应邻居采样修改——自适应采样
-        sampled_result = adaptive_sampler(num_nodes, ppr_adj, hop1_adj, hop2_adj, knn_adj,
-                                          p=p, total_sample_size=25)
+        sampled_result = adaptive_sampler(num_nodes, ppr_adj, hop1_adj, hop2_adj, knn_adj, p=p, total_sample_size=25)
+
         ada_neighbor_nodes = torch.stack(sampled_result).to(device).detach()
 
         # 模型前向传播

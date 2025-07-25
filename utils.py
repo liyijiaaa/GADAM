@@ -116,6 +116,7 @@ def column_normalize(mx):
 
 
 def adaptive_sampler(num_node, eigen_adj, hop1_adj, hop2_adj, knn_adj, p=None, total_sample_size=20):
+
     data_list = []
     for id in range(num_node):
         s_ppr = eigen_adj[id]
