@@ -95,6 +95,7 @@ def train_local(net, graph, feats, opt, args, memorybank_nor, memorybank_abnor, 
             train_list = train_list.tolist()
             nor_idx = train_list
 
+
             # 计算每个节点在多个epoch中异常池的平均异常得分
             for idx in range(len(memorybank_abnor)):
                 train_ano_scoreclone[idx, memorybank_abnor[idx]] = 0
