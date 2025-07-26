@@ -150,6 +150,7 @@ class GlobalModel(nn.Module):
 
         return attn.unsqueeze(1)
 
+
     def post_attention(self, h, mean_h):
         # calculate post-attn
         simi = self.discriminator(h, mean_h)
