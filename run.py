@@ -185,45 +185,45 @@ def train_global(global_net, opt, graph, args):
     best = 999
     dur = []
 
-    # # 自适应邻居采用修改开始点——初始化采样概率
-    # # # 移除自环
-    # # graph = dgl.remove_self_loop(graph)
-    # # # # 添加自环
-    # # graph = dgl.add_self_loop(graph)
-    # # 邻接矩阵处理
-    # adj_sp = graph.adj_external(scipy_fmt='coo') # 正确用法
-    #
-    # # 4种采样方式
-    # sampling_ways = 4
-    #
-    # normalized_adj = adj_normalize(adj_sp)  # 归一化邻接矩阵
-    # column_normalized_adj = column_normalize(adj_sp)  # 列归一化
-    # ppr_c = 0.15
-    #
-    # # 幂次邻接矩阵（1-hop, 2-hop）
-    # power_adj_list = [normalized_adj]
-    # for m in range(2):
-    #     power_adj_list.append(power_adj_list[0] * power_adj_list[m])
-    # #随机游走修改
-    # ppr_adj = ppr_c * inv((sp.eye(adj_sp.shape[0]) - (1 - ppr_c) * column_normalized_adj).toarray())  # PPR
-    # hop1_adj = power_adj_list[0].toarray()
-    # hop2_adj = power_adj_list[1].toarray()
-    # x = normalize(feats, dim=1).cpu()
-    # knn_adj = np.array(torch.matmul(x, x.transpose(1, 0)))
-    #
-    # # 四种采样方式
-    # sampling_weight = np.ones(4)
-    # # 最小采样概率
-    # p_min = 0.05
-    #
-    # p = (1 - 4 * p_min) * sampling_weight / sum(sampling_weight) + p_min
-    #
-    # warm_up_epoch = 3
-    # #奖励函数的计算次数
-    # update_internal = 5
-    # update_day = -1
-    # torch.autograd.set_detect_anomaly(True)
-    #
+    # 自适应邻居采用修改开始点——初始化采样概率
+    # 移除自环
+    graph = dgl.remove_self_loop(graph)
+    # # # 添加自环
+    graph = dgl.add_self_loop(graph)
+    # 邻接矩阵处理
+    adj_sp = graph.adj_external(scipy_fmt='coo') # 正确用法
+
+    # 4种采样方式
+    sampling_ways = 4
+
+    normalized_adj = adj_normalize(adj_sp)  # 归一化邻接矩阵
+    column_normalized_adj = column_normalize(adj_sp)  # 列归一化
+    ppr_c = 0.15
+
+    # 幂次邻接矩阵（1-hop, 2-hop）
+    power_adj_list = [normalized_adj]
+    for m in range(2):
+        power_adj_list.append(power_adj_list[0] * power_adj_list[m])
+    #随机游走修改
+    ppr_adj = ppr_c * inv((sp.eye(adj_sp.shape[0]) - (1 - ppr_c) * column_normalized_adj).toarray())  # PPR
+    hop1_adj = power_adj_list[0].toarray()
+    hop2_adj = power_adj_list[1].toarray()
+    x = normalize(feats, dim=1).cpu()
+    knn_adj = np.array(torch.matmul(x, x.transpose(1, 0)))
+
+    # 四种采样方式
+    sampling_weight = np.ones(4)
+    # 最小采样概率
+    p_min = 0.05
+
+    p = (1 - 4 * p_min) * sampling_weight / sum(sampling_weight) + p_min
+
+    warm_up_epoch = 3
+    #奖励函数的计算次数
+    update_internal = 5
+    update_day = -1
+    torch.autograd.set_detect_anomaly(True)
+
     pred_labels = np.zeros_like(labels)
 
     for epoch in range(epochs):
@@ -232,26 +232,26 @@ def train_global(global_net, opt, graph, args):
             t0 = time.time()
 
         opt.zero_grad()
-        # #自适应邻居采样修改——自适应采样
-        # sampled_result = adaptive_sampler(num_nodes, ppr_adj, hop1_adj, hop2_adj, knn_adj, p=p, total_sample_size=5)
-        #
-        # ada_neighbor_nodes = torch.stack(sampled_result).to(device).detach()
+        #自适应邻居采样修改——自适应采样
+        sampled_result = adaptive_sampler(num_nodes, ppr_adj, hop1_adj, hop2_adj, knn_adj, p=p, total_sample_size=5)
+
+        ada_neighbor_nodes = torch.stack(sampled_result).to(device).detach()
 
         # 模型前向传播
-        loss, scores = global_net(feats, epoch)
+        loss, scores = global_net(feats, epoch, ada_neighbor_nodes)
 
         mix_score = -(scores + pos)
-        # if epoch >= warm_up_epoch and (epoch - update_day) >= update_internal:
-        #     # 计算奖励（采样效果评估）
-        #     r = get_reward(device, p, ppr_adj, hop1_adj, hop2_adj, knn_adj, num_nodes,
-        #                    ada_neighbor_nodes, cost_mat=mix_score)
-        #
-        #     # 基于奖励更新采样权重_两个0.01是可变参数
-        #     updated_param = np.exp((p_min / 2.0) * (r + 0.01 / p) * 100 * np.sqrt(
-        #         np.log(5 / 0.01) / (sampling_ways * update_internal)))
-        #     sampling_weight = sampling_weight * updated_param
-        #     p = (1 - 4 * p_min) * sampling_weight / sum(sampling_weight) + p_min
-        #     update_day = epoch
+        if epoch >= warm_up_epoch and (epoch - update_day) >= update_internal:
+            # 计算奖励（采样效果评估）
+            r = get_reward(device, p, ppr_adj, hop1_adj, hop2_adj, knn_adj, num_nodes,
+                           ada_neighbor_nodes, cost_mat=mix_score)
+
+            # 基于奖励更新采样权重_两个0.01是可变参数
+            updated_param = np.exp((p_min / 2.0) * (r + 0.01 / p) * 100 * np.sqrt(
+                np.log(5 / 0.01) / (sampling_ways * update_internal)))
+            sampling_weight = sampling_weight * updated_param
+            p = (1 - 4 * p_min) * sampling_weight / sum(sampling_weight) + p_min
+            update_day = epoch
         loss.backward()
         opt.step()
 
