@@ -183,7 +183,35 @@ def train_local(net, graph, feats, opt, args, init=True):
     torch.save(memo, 'memo.pth')
 
 
-def load_info_from_local(local_net, nor_idx, abnor_idx, device):
+# def load_info_from_local(local_net, nor_idx, abnor_idx, device):
+#
+#     if device >= 0:
+#         torch.cuda.set_device(device)
+#         local_net = local_net.to(device)
+#
+#     memo = torch.load('memo.pth')
+#     local_net.load_state_dict(torch.load('best_local_model.pkl'))
+#     graph = memo['graph']
+#     feats = graph.ndata['feat']
+#
+#     # 将列表转换为张量
+#     nor_idx = torch.tensor(nor_idx, dtype=torch.long)
+#     abnor_idx = torch.tensor(abnor_idx, dtype=torch.long)
+#
+#     # 计算正常节点的中心
+#     h, _ = local_net.encoder(feats)
+#     center = h[nor_idx].mean(dim=0).detach()
+#
+#     if device >= 0:
+#         memo = {k: v.to(device) for k, v in memo.items()}
+#         nor_idx = nor_idx.cuda()
+#         abnor_idx = abnor_idx.cuda()
+#         center = center.cuda()
+#
+#     return memo, nor_idx, abnor_idx, center
+
+
+def load_info_from_local(local_net, device):
     if device >= 0:
         torch.cuda.set_device(device)
         local_net = local_net.to(device)
@@ -191,23 +219,32 @@ def load_info_from_local(local_net, nor_idx, abnor_idx, device):
     memo = torch.load('memo.pth')
     local_net.load_state_dict(torch.load('best_local_model.pkl'))
     graph = memo['graph']
+    pos = graph.ndata['pos']
+    scores = -pos.detach()
+    ano_topk = 0.05  # k_ano
+    nor_topk = 0.3  # k_nor
+    num_nodes = graph.num_nodes()
+
+    num_ano = int(num_nodes * ano_topk)
+    _, ano_idx = torch.topk(scores, num_ano)
+
+    num_nor = int(num_nodes * nor_topk)
+    _, nor_idx = torch.topk(-scores, num_nor)
+
     feats = graph.ndata['feat']
 
-    # 将列表转换为张量
-    nor_idx = torch.tensor(nor_idx, dtype=torch.long)
-    abnor_idx = torch.tensor(abnor_idx, dtype=torch.long)
-
-    # 计算正常节点的中心
     h, _ = local_net.encoder(feats)
+
     center = h[nor_idx].mean(dim=0).detach()
 
     if device >= 0:
         memo = {k: v.to(device) for k, v in memo.items()}
         nor_idx = nor_idx.cuda()
-        abnor_idx = abnor_idx.cuda()
+        ano_idx = ano_idx.cuda()
         center = center.cuda()
 
-    return memo, nor_idx, abnor_idx, center
+    return memo, nor_idx, ano_idx, center
+
 
 
 
