@@ -13,7 +13,7 @@ from sklearn.preprocessing import MinMaxScaler
 from numpy.linalg import inv
 from torch.nn.functional import normalize
 
-
+# 正太池异常池修改
 # def train_local(net, graph, feats, opt, args, memorybank_nor, memorybank_abnor, init=True):
 #     memo = {}
 #     labels = graph.ndata['label']
@@ -127,6 +127,7 @@ from torch.nn.functional import normalize
 #
 #     return nor_idx, abnor_idx
 
+
 def train_local(net, graph, feats, opt, args, init=True):
     memo = {}
     labels = graph.ndata['label']
@@ -182,7 +183,7 @@ def train_local(net, graph, feats, opt, args, init=True):
 
     torch.save(memo, 'memo.pth')
 
-
+# 正太池异常池修改
 # def load_info_from_local(local_net, nor_idx, abnor_idx, device):
 #
 #     if device >= 0:
@@ -247,7 +248,7 @@ def load_info_from_local(local_net, device):
 
 
 
-
+# 自适应采样修改
 def train_global(global_net, opt, graph, args):
     epochs = args.global_epochs
 
@@ -324,14 +325,15 @@ def train_global(global_net, opt, graph, args):
             t0 = time.time()
 
         opt.zero_grad()
-        #自适应邻居采样修改——自适应采样
-        sampled_result = adaptive_sampler(num_nodes, ppr_adj, hop1_adj, hop2_adj, knn_adj, p=p, total_sample_size=15)
+        #自适应邻居采样修改——自适应采样——k
+        sampled_result = adaptive_sampler(num_nodes, ppr_adj, hop1_adj, hop2_adj, knn_adj, p=p, total_sample_size=25)
 
         ada_neighbor_nodes = torch.stack(sampled_result).to(device).detach()
 
         # 模型前向传播
         loss, scores = global_net(feats, epoch, ada_neighbor_nodes)
 
+        # 修改在这里添加mix_score
         mix_score = -(scores + pos)
         if epoch >= warm_up_epoch and (epoch - update_day) >= update_internal:
             # 计算奖励（采样效果评估）
@@ -340,7 +342,7 @@ def train_global(global_net, opt, graph, args):
 
             # 基于奖励更新采样权重_两个0.01是可变参数
             updated_param = np.exp((p_min / 2.0) * (r + 0.01 / p) * 100 * np.sqrt(
-                np.log(15 / 0.01) / (sampling_ways * update_internal)))
+                np.log(25 / 0.01) / (sampling_ways * update_internal)))
             sampling_weight = sampling_weight * updated_param
             p = (1 - 4 * p_min) * sampling_weight / sum(sampling_weight) + p_min
             update_day = epoch
@@ -401,8 +403,11 @@ def main(args):
                                  lr=args.local_lr,
                                  weight_decay=args.weight_decay)
     t1 = time.time()
+
+
     train_local(local_net, graph, feats, local_opt, args)
     memo, nor_idx, ano_idx, center = load_info_from_local(local_net, args.gpu)
+
     # 修改,将正态池异常池传递给训练函数
     #nor_idx, abnor_idx = train_local(local_net, graph, feats, local_opt, args, memorybank_nor, memorybank_abnor)
 
