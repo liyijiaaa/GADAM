@@ -14,7 +14,120 @@ from numpy.linalg import inv
 from torch.nn.functional import normalize
 
 
-def train_local(net, graph, feats, opt, args, memorybank_nor, memorybank_abnor, init=True):
+# def train_local(net, graph, feats, opt, args, memorybank_nor, memorybank_abnor, init=True):
+#     memo = {}
+#     labels = graph.ndata['label']
+#     num_nodes = graph.num_nodes()
+#
+#     device = args.gpu
+#     if device >= 0:
+#         torch.cuda.set_device(device)
+#         net = net.to(device)
+#         labels = labels.cuda()
+#         feats = feats.cuda()
+#
+#     def init_xavier(m):
+#         if type(m) == nn.Linear:
+#             nn.init.xavier_normal_(m.weight)
+#
+#     if init:
+#         net.apply(init_xavier)
+#
+#     print('train on:', 'cpu' if device < 0 else 'gpu {}'.format(device))
+#
+#     cnt_wait = 0
+#     best = 999
+#     dur = []
+#
+#     # 修改,设置异常分数存储
+#     train_ano_score = torch.zeros((args.local_epochs, num_nodes), dtype=torch.float)
+#
+#     # 修改
+#     for epoch in range(args.local_epochs):  # local_epochs:100
+#
+#         net.train()
+#         if epoch >= 3:
+#             t0 = time.time()
+#         opt.zero_grad()
+#         loss, l1, l2 = net(feats)
+#         loss.backward()
+#         opt.step()
+#         # 记录当前epoch的异常分数
+#         pos = graph.ndata['pos']
+#         train_ano_score[epoch] = -pos.detach().view(-1)
+#
+#         if epoch > 0:
+#             # 动态添加正太池
+#             _, train_list_temp = train_ano_score[epoch - 1].topk(
+#                 int((epoch / args.local_epochs) ** 2 * num_nodes), dim=0,
+#                 largest=False, sorted=True)
+#             train_list_temp = train_list_temp.cpu().numpy()
+#             train_list_temp = train_list_temp.tolist()
+#             memorybank_nor.append(train_list_temp)
+#
+#             # 动态添加异常池——数量设置的一样
+#             _, train_list_atemp = train_ano_score[epoch - 1].topk(
+#                 int((epoch / args.local_epochs) ** 2 * num_nodes), dim=0,
+#                 largest=True, sorted=True)
+#             train_list_atemp = train_list_atemp.cpu().numpy()
+#             train_list_atemp = train_list_atemp.tolist()
+#             memorybank_abnor.append(train_list_atemp)
+#
+#         if epoch == (args.local_epochs - 1):
+#             # 归一化处理
+#             train_ano_score = train_ano_score.cpu().detach().numpy()
+#             scaler = MinMaxScaler()
+#             train_ano_score = scaler.fit_transform(train_ano_score.T).T
+#             train_ano_score = torch.DoubleTensor(train_ano_score).cuda()
+#
+#             # 克隆一份
+#             train_ano_scoreclone = train_ano_score.clone()
+#
+#             # 计算每个节点在多个epoch中正太池的平均异常得分
+#             for idx in range(len(memorybank_nor)):
+#                 train_ano_score[idx, memorybank_nor[idx]] = 0
+#             train_ano_score_nonzero = torch.count_nonzero(train_ano_score, dim=0)
+#             train_ano_score = torch.sum(train_ano_score, dim=0)
+#             train_ano_score = train_ano_score / train_ano_score_nonzero
+#             _, train_list = train_ano_score.topk(int(0.30 * num_nodes), dim=0, largest=False, sorted=True)
+#
+#             train_list = train_list.cpu().numpy()
+#             train_list = train_list.tolist()
+#             nor_idx = train_list
+#
+#
+#
+#             # 计算每个节点在多个epoch中异常池的平均异常得分
+#             for idx in range(len(memorybank_abnor)):
+#                 train_ano_scoreclone[idx, memorybank_abnor[idx]] = 0
+#             abnormal_non_zero_count = torch.count_nonzero(train_ano_scoreclone, dim=0)
+#             train_ano_scoreclone = torch.sum(train_ano_scoreclone, dim=0)
+#             train_ano_scoreclone = train_ano_scoreclone / abnormal_non_zero_count
+#             _, abnormal_indices = train_ano_scoreclone.topk(int(0.05 * num_nodes), dim=0, largest=True, sorted=True)
+#             abnor_idx = abnormal_indices.cpu().numpy().tolist()
+#
+#         if epoch >= 3:
+#             dur.append(time.time() - t0)
+#
+#         if loss.item() < best:
+#             best = loss.item()
+#             torch.save(net.state_dict(), 'best_local_model.pkl')
+#
+#         print("Epoch {} | Time(s) {:.4f} | Loss {:.4f} | l1 {:.4f} | l2 {:.4f}"
+#               .format(epoch + 1, np.mean(dur), loss.item(), l1.item(), l2.item()))
+#
+#     # 循环结束后加载最优模型
+#     memo['graph'] = graph
+#     net.load_state_dict(torch.load('best_local_model.pkl'))
+#     h, mean_h = net.encoder(feats)
+#     h, mean_h = h.detach(), mean_h.detach()
+#     memo['h'] = h
+#     memo['mean_h'] = mean_h
+#     torch.save(memo, 'memo.pth')
+#
+#     return nor_idx, abnor_idx
+
+def train_local(net, graph, feats, opt, args, init=True):
     memo = {}
     labels = graph.ndata['label']
     num_nodes = graph.num_nodes()
@@ -39,72 +152,16 @@ def train_local(net, graph, feats, opt, args, memorybank_nor, memorybank_abnor, 
     best = 999
     dur = []
 
-    # 修改,设置异常分数存储
-    train_ano_score = torch.zeros((args.local_epochs, num_nodes), dtype=torch.float)
-
-    # 修改
-    for epoch in range(args.local_epochs):  # local_epochs:100
-
+    for epoch in range(args.local_epochs):
         net.train()
         if epoch >= 3:
             t0 = time.time()
+
         opt.zero_grad()
         loss, l1, l2 = net(feats)
+
         loss.backward()
         opt.step()
-        # 记录当前epoch的异常分数
-        pos = graph.ndata['pos']
-        train_ano_score[epoch] = -pos.detach().view(-1)
-
-        if epoch > 0:
-            # 动态添加正太池
-            _, train_list_temp = train_ano_score[epoch - 1].topk(
-                int((epoch / args.local_epochs) ** 2 * num_nodes), dim=0,
-                largest=False, sorted=True)
-            train_list_temp = train_list_temp.cpu().numpy()
-            train_list_temp = train_list_temp.tolist()
-            memorybank_nor.append(train_list_temp)
-
-            # 动态添加异常池——数量设置的一样
-            _, train_list_atemp = train_ano_score[epoch - 1].topk(
-                int((epoch / args.local_epochs) ** 2 * num_nodes), dim=0,
-                largest=True, sorted=True)
-            train_list_atemp = train_list_atemp.cpu().numpy()
-            train_list_atemp = train_list_atemp.tolist()
-            memorybank_abnor.append(train_list_atemp)
-
-        if epoch == (args.local_epochs - 1):
-            # 归一化处理
-            train_ano_score = train_ano_score.cpu().detach().numpy()
-            scaler = MinMaxScaler()
-            train_ano_score = scaler.fit_transform(train_ano_score.T).T
-            train_ano_score = torch.DoubleTensor(train_ano_score).cuda()
-
-            # 克隆一份
-            train_ano_scoreclone = train_ano_score.clone()
-
-            # 计算每个节点在多个epoch中正太池的平均异常得分
-            for idx in range(len(memorybank_nor)):
-                train_ano_score[idx, memorybank_nor[idx]] = 0
-            train_ano_score_nonzero = torch.count_nonzero(train_ano_score, dim=0)
-            train_ano_score = torch.sum(train_ano_score, dim=0)
-            train_ano_score = train_ano_score / train_ano_score_nonzero
-            _, train_list = train_ano_score.topk(int(0.30 * num_nodes), dim=0, largest=False, sorted=True)
-
-            train_list = train_list.cpu().numpy()
-            train_list = train_list.tolist()
-            nor_idx = train_list
-
-
-
-            # 计算每个节点在多个epoch中异常池的平均异常得分
-            for idx in range(len(memorybank_abnor)):
-                train_ano_scoreclone[idx, memorybank_abnor[idx]] = 0
-            abnormal_non_zero_count = torch.count_nonzero(train_ano_scoreclone, dim=0)
-            train_ano_scoreclone = torch.sum(train_ano_scoreclone, dim=0)
-            train_ano_scoreclone = train_ano_scoreclone / abnormal_non_zero_count
-            _, abnormal_indices = train_ano_scoreclone.topk(int(0.05 * num_nodes), dim=0, largest=True, sorted=True)
-            abnor_idx = abnormal_indices.cpu().numpy().tolist()
 
         if epoch >= 3:
             dur.append(time.time() - t0)
@@ -116,16 +173,14 @@ def train_local(net, graph, feats, opt, args, memorybank_nor, memorybank_abnor, 
         print("Epoch {} | Time(s) {:.4f} | Loss {:.4f} | l1 {:.4f} | l2 {:.4f}"
               .format(epoch + 1, np.mean(dur), loss.item(), l1.item(), l2.item()))
 
-    # 循环结束后加载最优模型
     memo['graph'] = graph
     net.load_state_dict(torch.load('best_local_model.pkl'))
     h, mean_h = net.encoder(feats)
     h, mean_h = h.detach(), mean_h.detach()
     memo['h'] = h
     memo['mean_h'] = mean_h
-    torch.save(memo, 'memo.pth')
 
-    return nor_idx, abnor_idx
+    torch.save(memo, 'memo.pth')
 
 
 def load_info_from_local(local_net, nor_idx, abnor_idx, device):
@@ -309,11 +364,12 @@ def main(args):
                                  lr=args.local_lr,
                                  weight_decay=args.weight_decay)
     t1 = time.time()
-
+    train_local(local_net, graph, feats, local_opt, args)
+    memo, nor_idx, ano_idx, center = load_info_from_local(local_net, args.gpu)
     # 修改,将正态池异常池传递给训练函数
-    nor_idx, abnor_idx = train_local(local_net, graph, feats, local_opt, args, memorybank_nor, memorybank_abnor)
+    #nor_idx, abnor_idx = train_local(local_net, graph, feats, local_opt, args, memorybank_nor, memorybank_abnor)
 
-    memo, nor_idx, ano_idx, center = load_info_from_local(local_net, nor_idx, abnor_idx, args.gpu)
+    #memo, nor_idx, ano_idx, center = load_info_from_local(local_net, nor_idx, abnor_idx, args.gpu)
 
     t2 = time.time()
     graph = memo['graph']

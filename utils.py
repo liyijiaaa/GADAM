@@ -76,6 +76,7 @@ def my_load_data(dataname, path='./data/'):
     return graph[0][0]
 
 
+
 def pyg_to_dgl(pyg_graph):
     # Extract the PyG graph components
     edge_index = pyg_graph.edge_index

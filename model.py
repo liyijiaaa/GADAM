@@ -95,6 +95,7 @@ class LocalModel(nn.Module):
         self.loss = nn.BCEWithLogitsLoss()
         self.recon_loss = nn.MSELoss()
 
+
     def forward(self, h):
         h, mean_h = self.encoder(h)
 
